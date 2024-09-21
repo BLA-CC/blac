@@ -1,0 +1,7 @@
+*.o
+blac
+include/parser.h
+include/lexer.h
+src/parser.c
+src/lexer.c
+
