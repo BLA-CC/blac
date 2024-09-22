@@ -4,9 +4,8 @@
 #include <stdint.h>
 #include "vec.h"
 
-#define NO_STR UINT32_MAX
-
 typedef uint32_t StrIdx;
+#define NO_STR UINT32_MAX
 
 Vec_Proto(char);
 typedef struct { charVec strs; } StrPool;
