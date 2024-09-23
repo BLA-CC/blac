@@ -32,8 +32,14 @@ $(LEXER): $(SOURCE_DIR)/lexer.l
 $(PARSER): $(SOURCE_DIR)/parser.y $(LEXER)
 	bison $<
 
+test: $(LEXER) $(PARSER) $(OBJECT)
+	$(MAKE) -C tests run-tests
+
 clean:
 	rm -f $(TARGET) $(PARSER) $(PARSER_H) $(LEXER) $(LEXER_H) $(OBJECT)
+	$(MAKE) -C tests clean
 
 .PHONY: all clean
+
+export CC CFLAGS LDFLAGS SOURCE OBJECT PARSER LEXER
 
