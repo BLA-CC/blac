@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = `pkg-config --cflags gtest`
+CXXFLAGS = `pkg-config --cflags gtest` -I../include -I../src
 LDFLAGS += `pkg-config --libs gtest`
 
 SOURCE_DIR := $(add-prefix ../, $(SOURCE_DIR))
