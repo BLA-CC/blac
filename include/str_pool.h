@@ -9,7 +9,10 @@
 typedef uint32_t StrIdx;
 
 Vec_Proto(char);
-typedef struct { charVec strs; } StrPool;
+
+typedef struct {
+    Vec(char) strs;
+} StrPool;
 
 void StrPool_release(StrPool *self);
 
