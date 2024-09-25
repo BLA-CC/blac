@@ -7,7 +7,7 @@
 
 %option outfile="src/lexer.c" header-file="include/lexer.h"
 
-%option noyywrap nounput noinput nounistd noyylineno nostack nodefault
+%option noyywrap nounput noinput nounistd noyylineno nostack
 %option warn reentrant never-interactive
 
 %option bison-bridge bison-locations
@@ -17,14 +17,30 @@ NL      \r\n|\n\r|\n
 NUMBER  [0-9]+
 IDENT   [a-zA-Z][a-zA-Z0-9]*
 
+%x ML_COMMENT
+
 %%
+    uint32_t comment_nesting = 0;
 %{
     yylloc->col += yyleng;
 %}
 
+    /* Whitespace */
 {WS}+    { yylloc->col += yyleng; }
 {NL}+    { yylloc->col = 1; yylloc->line += yyleng; }
 "//".*\n { yylloc->col = 1; yylloc->line += 1; }
+"/*"     { yylloc->col += yyleng; BEGIN(ML_COMMENT); }
+
+<ML_COMMENT> {
+  "/*"      { yylloc->col += yyleng; comment_nesting++; }
+  '*'+'/'   { yylloc->col += yyleng;
+              if (comment_nesting) { comment_nesting--; }
+              else { BEGIN(INITIAL); } }
+  '*'+      { yylloc->col += yyleng; }
+  [^/*\n]+  { yylloc->col += yyleng; }
+  [/]       { yylloc->col += yyleng; }
+  \n+       { yylloc->col = 1; yylloc->line += yyleng; }
+}
 
     /* Keywords */
 "bool"      { return TOK_BOOL; }
