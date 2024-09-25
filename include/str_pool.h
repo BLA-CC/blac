@@ -8,7 +8,7 @@ typedef uint32_t StrIdx;
 #define NO_STR UINT32_MAX
 
 #ifdef __cplusplus
-#extern "C"
+extern "C" {
 #endif /* __cplusplus */
 
 Vec_Proto(char);

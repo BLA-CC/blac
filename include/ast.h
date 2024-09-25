@@ -6,6 +6,10 @@
 #include "str_pool.h"
 #include "vec.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 typedef struct {
     uint32_t line;
     uint32_t col;
@@ -136,5 +140,9 @@ typedef struct {
 Vec_Proto(AstNode);
 
 NodeIdx AstBuilder_mk_list(AstNodeVec *ast_nodes, AstNodeVec *list_nodes, uint32_t begin);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* _AST_H */
