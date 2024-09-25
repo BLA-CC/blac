@@ -31,7 +31,7 @@ IDENT   [a-zA-Z][a-zA-Z0-9]*
 "//".*\n { yylloc->col = 1; yylloc->line += 1; }
 "/*"     { yylloc->col += yyleng; BEGIN(ML_COMMENT); }
 
-<ML_COMMENT> {
+<ML_COMMENT>{
   "/*"      { yylloc->col += yyleng; comment_nesting++; }
   '*'+'/'   { yylloc->col += yyleng;
               if (comment_nesting) { comment_nesting--; }
