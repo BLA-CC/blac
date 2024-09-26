@@ -1,68 +1,57 @@
 #include <gtest/gtest.h>
-#ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
-
 #include "parser.h"
 #include "lexer.h"
-
-#ifdef __cplusplus
 }
-#endif /* __cplusplus */
 #include "str_pool.h"
 #include "common.h"
 
 class ParserTest : public ::testing::Test {
-protected:
-    StrPool str_pool = {0};
+  protected:
+    StrPool str_pool = { 0 };
     yyscan_t scanner;
     YY_BUFFER_STATE buffer;
-    Parser parser = {0};
+    Parser parser = { 0 };
 
-    void SetUp() override {
-        yylex_init_extra(&str_pool, &scanner);
-    }
+    void SetUp() override { yylex_init_extra(&str_pool, &scanner); }
 
     void TearDown() override {
         yylex_destroy(scanner);
         StrPool_release(&str_pool);
     }
 
-    int ParseString(const char* input) {
+    int ParseString(const char *input) {
         YY_BUFFER_STATE buffer = yy_scan_string(input, scanner);
         int result = yyparse(&parser, scanner);
         yy_delete_buffer(buffer, scanner);
         return result;
     }
 
-    AstNode Root() {
-        return parser.nodes.elems[0];
-    }
+    AstNode Root() { return parser.nodes.elems[0]; }
 
-    AstNode Node(NodeIdx idx) {
-        return parser.nodes.elems[idx];
-    }
+    AstNode Node(NodeIdx idx) { return parser.nodes.elems[idx]; }
 
-    int AstLen() {
-        return parser.nodes.len;
-    }
+    int AstLen() { return parser.nodes.len; }
 
     AstNode FirstMethod() {
         return Node(Node(Root().data.PROG.meths).data.LIST.begin);
     }
 
     AstNode FirstVarDecl(AstNode meth) {
-        return Node(
-            Node(Node(meth.data.METH_DECL.body).data.BLOCK.vars).data.LIST.begin
-        );
+        return Node(Node(Node(meth.data.METH_DECL.body).data.BLOCK.vars)
+                        .data.LIST.begin);
     }
 
-    void AssertVarDecl(const AstNode& var_decl, Type type, const char* name) {
+    void AssertVarDecl(const AstNode &var_decl, Type type, const char *name) {
         ASSERT_EQ(var_decl.data.VAR_DECL.type, type);
         ASSERT_EQ(var_decl.data.VAR_DECL.ident, StrPool_put(&str_pool, name));
     }
 
-    void AssertBinOp(const AstNode& node, BinOp op, AstNodeKind lhs_kind, AstNodeKind rhs_kind) {
+    void AssertBinOp(
+        const AstNode &node,
+        BinOp op,
+        AstNodeKind lhs_kind,
+        AstNodeKind rhs_kind) {
         ASSERT_EQ(node.kind, AstNodeKind_BINOP);
         ASSERT_EQ(node.data.BINOP.op, op);
         ASSERT_EQ(Node(node.data.BINOP.lhs).kind, lhs_kind);
@@ -78,31 +67,30 @@ TEST_F(ParserTest, ParseProgram) {
 }
 
 TEST_F(ParserTest, ExampleProgram) {
-    ASSERT_EQ(ParseString(
-        "program {\n"
-        "    void main() {\n"
-        "        integer y = 0;\n"
-        "        y = getint();\n"
-        "        if (y == 1) then {\n"
-        "            printint(y);\n"
-        "        } else {\n"
-        "            return printint(inc(y));\n"
-        "        }\n"
-        "    }\n"
-        "}\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString("program {\n"
+                    "    void main() {\n"
+                    "        integer y = 0;\n"
+                    "        y = getint();\n"
+                    "        if (y == 1) then {\n"
+                    "            printint(y);\n"
+                    "        } else {\n"
+                    "            return printint(inc(y));\n"
+                    "        }\n"
+                    "    }\n"
+                    "}\n"),
+        0);
 }
 
-
 TEST_F(ParserTest, ProgramBody) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     integer ivar = 0;\n"
-        "     bool bvar = 0;\n"
-        "     integer method(integer param){ return; }\n"
-        "     void external() extern;\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(" program {\n"
+                    "     integer ivar = 0;\n"
+                    "     bool bvar = 0;\n"
+                    "     integer method(integer param){ return; }\n"
+                    "     void external() extern;\n"
+                    " }\n"),
+        0);
     ASSERT_EQ(AstLen(), 16);
 
     ASSERT_EQ(Root().kind, AstNodeKind_PROG);
@@ -116,26 +104,25 @@ TEST_F(ParserTest, ProgramBody) {
 
     for (NodeIdx i = meths.data.LIST.begin; i < meths.data.LIST.end; i++) {
         ASSERT_TRUE(
-            (Node(i).kind == AstNodeKind_METH_DECL) || \
-            (Node(i).kind == AstNodeKind_METH_PROTO)
-        );
+            (Node(i).kind == AstNodeKind_METH_DECL) ||
+            (Node(i).kind == AstNodeKind_METH_PROTO));
     }
 
-    ASSERT_NE(ParseString(
-        " program {\n"
-        "     void method(){ }\n"
-        "     bool bvar = 0;\n"
-        " }\n"
-    ), 0);
+    ASSERT_NE(
+        ParseString(" program {\n"
+                    "     void method(){ }\n"
+                    "     bool bvar = 0;\n"
+                    " }\n"),
+        0);
 }
 
 TEST_F(ParserTest, ParseVariableDecl) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     bool bvar = true;\n"
-        "     integer ivar = 0;\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(" program {\n"
+                    "     bool bvar = true;\n"
+                    "     integer ivar = 0;\n"
+                    " }\n"),
+        0);
 
     ASSERT_EQ(AstLen(), 6);
 
@@ -148,14 +135,15 @@ TEST_F(ParserTest, ParseVariableDecl) {
 }
 
 TEST_F(ParserTest, ParseMethodDecl) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     void main(integer a, bool b) { integer foo = 2; return; }\n"
-        "     integer func1(integer a) { integer foo = 2; return; }\n"
-        "     bool func2() { return true; }\n"
-        "     void print(integer i) extern;\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(
+            " program {\n"
+            "     void main(integer a, bool b) { integer foo = 2; return; }\n"
+            "     integer func1(integer a) { integer foo = 2; return; }\n"
+            "     bool func2() { return true; }\n"
+            "     void print(integer i) extern;\n"
+            " }\n"),
+        0);
     ASSERT_EQ(AstLen(), 33);
     AstNode main = FirstMethod();
 
@@ -170,64 +158,59 @@ TEST_F(ParserTest, ParseMethodDecl) {
     AssertVarDecl(Node(params.data.LIST.end - 1), Type_BOOL, "b");
 }
 
-
-
 TEST_F(ParserTest, ParseBlock) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     void main() {\n"
-        "         integer x = 10;\n"
-        "         bool w = false;\n"
-        "         x = true;\n"
-        "         w = true;\n"
-        "     }\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(" program {\n"
+                    "     void main() {\n"
+                    "         integer x = 10;\n"
+                    "         bool w = false;\n"
+                    "         x = true;\n"
+                    "         w = true;\n"
+                    "     }\n"
+                    " }\n"),
+        0);
 
-    ASSERT_NE(ParseString(
-        " program {\n"
-        "     void main() {\n"
-        "         integer x = 10;\n"
-        "         x = true;\n"
-        "         bool w = false;\n"
-        "         w = true;\n"
-        "     }\n"
-        " }\n"
-    ), 0);
+    ASSERT_NE(
+        ParseString(" program {\n"
+                    "     void main() {\n"
+                    "         integer x = 10;\n"
+                    "         x = true;\n"
+                    "         bool w = false;\n"
+                    "         w = true;\n"
+                    "     }\n"
+                    " }\n"),
+        0);
 
-    ASSERT_NE(ParseString(
-        " program {\n"
-        "     void main() {\n"
-        "         void func(integer a) {}\n"
-        "     }\n"
-        " }\n"
-    ), 0);
+    ASSERT_NE(
+        ParseString(" program {\n"
+                    "     void main() {\n"
+                    "         void func(integer a) {}\n"
+                    "     }\n"
+                    " }\n"),
+        0);
 }
 
-
-
 TEST_F(ParserTest, ParseStatements) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     void main() {\n"
-        "         integer x = 0;\n"
-        "         integer y = 100 + 32;\n"
-        "         x = 10;\n"
-        "         x = func(x, y);\n"
-        "         if (x == 10*y) then {\n"
-        "             x = 5;\n"
-        "         }\n"
-        "         while (x < 10) {\n"
-        "             x = x + 1;\n"
-        "         }\n"
-        "         return 0;\n"
-        "     }\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(" program {\n"
+                    "     void main() {\n"
+                    "         integer x = 0;\n"
+                    "         integer y = 100 + 32;\n"
+                    "         x = 10;\n"
+                    "         x = func(x, y);\n"
+                    "         if (x == 10*y) then {\n"
+                    "             x = 5;\n"
+                    "         }\n"
+                    "         while (x < 10) {\n"
+                    "             x = x + 1;\n"
+                    "         }\n"
+                    "         return 0;\n"
+                    "     }\n"
+                    " }\n"),
+        0);
 
-    AstNode stmts = Node(
-        Node(FirstMethod().data.METH_DECL.body).data.BLOCK.stmts
-    );
+    AstNode stmts =
+        Node(Node(FirstMethod().data.METH_DECL.body).data.BLOCK.stmts);
 
     ASSERT_EQ(stmts.kind, AstNodeKind_LIST);
     ASSERT_EQ(stmts.data.LIST.end - stmts.data.LIST.begin, 5);
@@ -238,7 +221,6 @@ TEST_F(ParserTest, ParseStatements) {
     AstNode if_stmt = Node(stmts.data.LIST.begin + 2);
     ASSERT_EQ(if_stmt.kind, AstNodeKind_IF);
 }
-
 
 TEST_F(ParserTest, ParseArithExpression) {
     ASSERT_EQ(ParseString("program { void f() { integer x = 1 + 2 * 3; }}"), 0);
@@ -257,13 +239,13 @@ TEST_F(ParserTest, ParseArithExpression) {
 }
 
 TEST_F(ParserTest, ParseBoolExpressions) {
-    ASSERT_EQ(ParseString(
-        " program {\n"
-        "     void main() {\n"
-        "         bool result = true && false;\n"
-        "     }\n"
-        " }\n"
-    ), 0);
+    ASSERT_EQ(
+        ParseString(" program {\n"
+                    "     void main() {\n"
+                    "         bool result = true && false;\n"
+                    "     }\n"
+                    " }\n"),
+        0);
 
     AstNode decl = FirstVarDecl(FirstMethod());
     AssertVarDecl(decl, Type_BOOL, "result");
