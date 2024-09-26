@@ -7,8 +7,8 @@ INCLUDE_DIR = include
 
 CFLAGS += -I$(INCLUDE_DIR)
 
-PARSER_H = $(INCLUDE_DIR)/parser.h
-LEXER_H = $(INCLUDE_DIR)/lexer.h
+PARSER_H = $(INCLUDE_DIR)/_parser.h
+LEXER_H = $(INCLUDE_DIR)/_lexer.h
 PARSER = $(SOURCE_DIR)/parser.c
 LEXER = $(SOURCE_DIR)/lexer.c
 
@@ -24,12 +24,12 @@ all: $(TARGET)
 $(TARGET): $(LEXER) $(PARSER) $(OBJECT)
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-$(SOURCE_DIR)/main.o: $(LEXER)
+$(SOURCE_DIR)/main.o: $(LEXER) $(PARSER)
 
 $(LEXER): $(SOURCE_DIR)/lexer.l
 	flex $<
 
-$(PARSER): $(SOURCE_DIR)/parser.y $(LEXER)
+$(PARSER): $(SOURCE_DIR)/parser.y
 	bison $<
 
 test: $(LEXER) $(PARSER) $(OBJECT)

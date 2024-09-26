@@ -1,10 +1,6 @@
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "parser.h"
-#include "lexer.h"
-}
-
 #include "str_pool.h"
 
 class LexerTest : public ::testing::Test {

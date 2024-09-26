@@ -1,7 +1,7 @@
 *.o
 blac
-include/parser.h
-include/lexer.h
+include/_parser.h
+include/_lexer.h
 src/parser.c
 src/lexer.c
 tests/test
