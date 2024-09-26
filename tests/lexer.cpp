@@ -1,15 +1,9 @@
 #include <gtest/gtest.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
-
-#include "parser.h"
-#include "lexer.h"
-
-#ifdef __cplusplus
+    #include "parser.h"
+    #include "lexer.h"
 }
-#endif /* __cplusplus */
 
 #include "str_pool.h"
 
@@ -78,14 +72,14 @@ TEST_F(LexerTest, Keywords) {
 
 TEST_F(LexerTest, Comments) {
     setTokens(
-        "// one line comment\nreturn\n/*several\nlines comment\n*/\nwhile");
+        "// one line comment\nreturn\n/*several\nlines comment\n*/\nwhile/*/*hola*/*/if");
 
-    std::vector<int> expected_tokens = { TOK_RETURN, TOK_WHILE };
+    std::vector<int> expected_tokens = { TOK_RETURN, TOK_WHILE, TOK_IF};
 
     assertTokens(expected_tokens);
 }
 
-TEST_F(LexerTest, WhitespacesAndComments) {
+TEST_F(LexerTest, Whitespaces) {
     setTokens("while  /*comment! true*/    true\n{\n// comment!\n    "
               "return/*comment!*/;}");
 
