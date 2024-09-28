@@ -1,9 +1,11 @@
 #include <stdio.h>
+
 #include "str_pool.h"
 #include "parser.h"
-#include "lexer.h"
 
 int main(int argc, char *argv[]) {
+    (void) argc; (void) argv;
+
     StrPool strs = {0};
     Parser parser = {0};
 

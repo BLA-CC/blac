@@ -1,11 +1,11 @@
 %{
 #include "str_pool.h"
-#include "parser.h"
+#include "_parser.h"
 
 #define YY_EXTRA_TYPE StrPool *
 %}
 
-%option outfile="src/lexer.c" header-file="include/lexer.h"
+%option outfile="src/lexer.c" header-file="include/_lexer.h"
 
 %option noyywrap nounput noinput nounistd noyylineno nostack
 %option warn reentrant never-interactive

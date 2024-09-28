@@ -9,9 +9,9 @@
 
 /***************************** File Organization *****************************/
 %output  "src/parser.c"
-%defines "include/parser.h"
+%defines "include/_parser.h"
 
-%define api.header.include {"parser.h"}
+%define api.header.include {"_parser.h"}
 
 %code requires {
     #include "ast.h"
