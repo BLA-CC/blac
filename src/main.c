@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
         printf("(%3u %3u) %3u. ", n->loc.line, n->loc.col, i);
         switch (n->kind) {
         case AstNodeKind_PROG:
-            printf("{%u; %u}\n", n->data.PROG.vars, n->data.PROG.meths);
+            printf("{%u; %u}\n", n->data.PROG.begin, n->data.PROG.end);
             break;
         case AstNodeKind_VAR_DECL:
             printf("%u %s = %u\n", n->data.VAR_DECL.type, StrPool_get(&strs, n->data.VAR_DECL.ident), n->data.VAR_DECL.expr);
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
             printf("ret %u\n", n->data.RET.ret_val);
             break;
         case AstNodeKind_BLOCK:
-            printf("{%u; %u}\n", n->data.PROG.vars, n->data.PROG.meths);
+            printf("{%u; %u}\n", n->data.BLOCK.begin, n->data.BLOCK.end);
             break;
         case AstNodeKind_NOP:
             printf("nop\n");

@@ -85,7 +85,7 @@ typedef uint32_t NodeIdx;
 
 #define FOR_AST_NODES(DO)                                               \
     /* toplevel */                                                      \
-    DO(PROG, struct { NodeIdx vars; NodeIdx meths; })                   \
+    DO(PROG, struct { NodeIdx begin; NodeIdx end; })                    \
     DO(VAR_DECL, struct { Type type; StrIdx ident; NodeIdx expr; })     \
     DO(METH_DECL, struct { StrIdx ident; NodeIdx proto; NodeIdx body; })\
     DO(METH_PROTO, struct { NodeIdx params; Type ret_type; })           \
@@ -95,7 +95,7 @@ typedef uint32_t NodeIdx;
     DO(IF, struct { NodeIdx cond; NodeIdx then_b; NodeIdx else_b; })    \
     DO(WHILE, struct { NodeIdx cond; NodeIdx body; })                   \
     DO(RET, struct { NodeIdx ret_val; })                                \
-    DO(BLOCK, struct { NodeIdx vars; NodeIdx stmts; })                  \
+    DO(BLOCK, struct { NodeIdx begin; NodeIdx end; })                   \
     DO(NOP, struct {})                                                  \
     /* expressions */                                                   \
     DO(METH_CALL, struct { StrIdx meth_ident; NodeIdx args; })          \
@@ -138,8 +138,6 @@ typedef struct {
     }
 
 Vec_Proto(AstNode);
-
-NodeIdx AstBuilder_mk_list(AstNodeVec *ast_nodes, AstNodeVec *list_nodes, uint32_t begin);
 
 #ifdef __cplusplus
 }

@@ -51,12 +51,37 @@
     while (0)
 %}
 
+/********************************** Helpers **********************************/
 %code {
+    #include <string.h>
+
     #define nodes parser->nodes
     #define scratch parser->scratch
     #define nodes_push(x) AstNodeVec_push(&nodes, x)
     #define scratch_push(x) AstNodeVec_push(&scratch, x)
-    #define mk_list(b) AstBuilder_mk_list(&nodes, &scratch, b)
+    #define finish_list(b) Parser_finish_list(parser, b)
+
+    // Appends `scratch[scratch_begin..]` to the end of `nodes`
+    // and frees the slice from scratch.
+    // returns the start of the appended slice
+    // TODO: return and handle NO_NODE if `scratch[scratch_begin..] == []`
+    NodeIdx Parser_finish_list(Parser *parser, uint32_t scratch_begin) {
+        uint32_t list_len = scratch.len - scratch_begin;
+        if (list_len == 0) {
+            return nodes.len;
+        }
+
+        AstNodeVec_reserve(&nodes, list_len);
+        AstNode *nodes_end = &nodes.elems[nodes.len];
+
+        memcpy(nodes_end,
+                &scratch.elems[scratch_begin],
+                list_len * sizeof(AstNode));
+        nodes.len += list_len;
+        scratch.len -= list_len;
+
+        return nodes.len - list_len;
+    }
 }
 
 %token
@@ -95,22 +120,6 @@
     TOK_IDENT       "identifier"
 %token TOK_ILLEGAL_CHAR
 
-%type <AstNode>
-    var_decl
-    meth_decl
-    param
-    block
-    stmt
-    meth_call
-    expr
-%type <NodeIdx>
-    meth_impl.opt
-    expr.opt
-    else.opt
-%type <Type>
-    type
-    ret_type
-
 %left "||"
 %left "&&"
 %left "=="
@@ -120,59 +129,69 @@
 %precedence NEG // logic negation
 %precedence UNM // unary minus
 
+%start program
+%type <AstNode>
+    block
+    meth_call
+    expr
+%type <NodeIdx>
+    meth_impl.opt
+    expr.opt
+    else.opt
+%type <Type> type
+
 %%
 program:
-    "program"
-    { nodes_push(AstNode_mk(@1, PROG)); }
-    "{"
-    { $<uint32_t>$ = scratch.len; }
-    var_decl.list
+    "program" "{"
     {
-        $<uint32_t>$ = mk_list($<uint32_t>4);
-        // scratch.len gets resetted, so is now $4 again
+        nodes_push(AstNode_mk(@1, PROG));
+        $<uint32_t>$ = scratch.len;
     }
-    meth_decl.list
-    { $<uint32_t>$ = mk_list($<uint32_t>4); }
-    "}"
+    toplvl.list "}"
     {
+        uint32_t toplvl_begin = finish_list($<uint32_t>3);
         AstNode *root = &nodes.elems[0];
-        root->data.PROG.vars = $<uint32_t>6;
-        root->data.PROG.meths = $<uint32_t>8;
+        root->data.PROG.begin = toplvl_begin;
+        root->data.PROG.end = nodes.len;
         return yynerrs;
     };
 
-var_decl: type TOK_IDENT "=" expr ";" {
+scratch.var_decl: type TOK_IDENT "=" expr ";" {
         nodes_push($4);
-        $$ = AstNode_mk(@2, VAR_DECL, $1, $2, nodes.len - 1);
+        scratch_push(AstNode_mk(@2, VAR_DECL, $1, $2, nodes.len - 1));
     };
 
-meth_decl:
-    ret_type TOK_IDENT "("
+scratch.meth_decl:
+    type TOK_IDENT "("
     { $<uint32_t>$ = scratch.len; }
     param.list
-    { $<uint32_t>$ = mk_list($<uint32_t>4); }
+    {
+        uint32_t prm_begin = finish_list($<uint32_t>4);
+        nodes_push(AstNode_mk(@3, LIST, prm_begin, nodes.len));
+        $<uint32_t>$ = nodes.len - 1;
+    }
     ")" meth_impl.opt {
         AstNode proto = AstNode_mk(@1, METH_PROTO, $<uint32_t>6, $1);
         nodes_push(proto);
-        $$ = AstNode_mk(@1, METH_DECL, $2, nodes.len - 1, $8);
+        scratch_push(AstNode_mk(@1, METH_DECL, $2, nodes.len - 1, $8));
     };
 
-stmt: TOK_IDENT "=" expr ";" {
+scratch.stmt: TOK_IDENT "=" expr ";" {
         nodes_push($3);
-        $$ = AstNode_mk(@2, ASGN, $1, nodes.len - 1);
+        scratch_push(AstNode_mk(@2, ASGN, $1, nodes.len - 1));
     }
-    | meth_call ";" { $$ = $1; }
-    | "if" "(" expr ")" "then" block else.opt ";" {
+    | "if" "(" expr ")" "then" block else.opt {
         nodes_push($3); nodes_push($6);
-        $$ = AstNode_mk(@1, IF, nodes.len - 2, nodes.len - 1, nodes.len - 3);
+        scratch_push(AstNode_mk(@1, IF, nodes.len - 2, nodes.len - 1, nodes.len - 3));
     }
-    | "while" "(" expr ")" block ";" {
+    | "while" "(" expr ")" block {
         nodes_push($3); nodes_push($5);
-        $$ = AstNode_mk(@1, WHILE, nodes.len - 2, nodes.len - 1);
+        scratch_push(AstNode_mk(@1, WHILE, nodes.len - 2, nodes.len - 1));
     }
-    | "return" expr.opt ";" { $$ = AstNode_mk(@1, RET, $2); }
-    | ";" { $$ = AstNode_mk(@1, NOP); }
-    | block { $$ = $1; }
+    | "return" expr.opt ";" { scratch_push(AstNode_mk(@1, RET, $2)); }
+    | ";" { scratch_push(AstNode_mk(@1, NOP)); }
+    | meth_call ";" { scratch_push($1); }
+    | block { scratch_push($1); }
     ;
 
 expr: meth_call { $$ = $1; }
@@ -234,30 +253,26 @@ expr: meth_call { $$ = $1; }
 block:
     "{"
     { $<uint32_t>$ = scratch.len; }
-    var_decl.list
+    blk.list "}"
     {
-        $<uint32_t>$ = mk_list($<uint32_t>2);
-        // list_nodes.len is resetted, so is now $2 again
-    }
-    stmt.list
-    { $<uint32_t>$ = mk_list($<uint32_t>2); }
-    "}"
-    { $$ = AstNode_mk(@1, BLOCK, $<uint32_t>4, $<uint32_t>6); };
+        uint32_t blk_begin = finish_list($<uint32_t>2);
+        $$ = AstNode_mk(@1, BLOCK, blk_begin, nodes.len);
+    };
 
 meth_call:
     TOK_IDENT "("
     { $<uint32_t>$ = scratch.len; }
-    arg.list
-    { $<uint32_t>$ = mk_list($<uint32_t>3); }
-    ")" { $$ = AstNode_mk(@1, METH_CALL, $1, $<uint32_t>5); };
+    arg.list ")"
+    {
+        uint32_t arg_begin = finish_list($<uint32_t>3);
+        nodes_push(AstNode_mk(@2, LIST, arg_begin, nodes.len));
+        $$ = AstNode_mk(@1, METH_CALL, $1, nodes.len - 1);
+    };
 
-param: type TOK_IDENT { $$ = AstNode_mk(@1, PARAM, $1, $2); };
+scratch.param: type TOK_IDENT { scratch_push(AstNode_mk(@1, PARAM, $1, $2)); };
 
 type: "integer" { $$ = Type_INT; }
     | "bool"    { $$ = Type_BOOL; }
-    ;
-ret_type
-    : type      { $$ = $1; }
     | "void"    { $$ = Type_VOID; }
     ;
 
@@ -279,23 +294,20 @@ param.list
     ;
 
 param.list1
-    : param { scratch_push($1); }
-    | param.list1 "," param { scratch_push($3); }
+    : scratch.param
+    | param.list1 "," scratch.param
     ;
 
-stmt.list
+toplvl.list
     :
-    | stmt.list stmt { scratch_push($2); }
+    | toplvl.list scratch.var_decl
+    | toplvl.list scratch.meth_decl
     ;
 
-var_decl.list
+blk.list
     :
-    | var_decl.list var_decl { scratch_push($2); }
-    ;
-
-meth_decl.list
-    :
-    | meth_decl.list meth_decl { scratch_push($2); }
+    | blk.list scratch.var_decl
+    | blk.list scratch.stmt
     ;
 
 // OPTIONALS (pushed eagerly)
