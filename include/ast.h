@@ -83,29 +83,41 @@ typedef uint32_t NodeIdx;
  *          zero is represented as NO_NODE
  * */
 
-#define FOR_AST_NODES(DO)                                               \
-    /* toplevel */                                                      \
-    DO(PROG, struct { NodeIdx begin; NodeIdx end; })                    \
-    DO(VAR_DECL, struct { Type type; StrIdx ident; NodeIdx expr; })     \
-    DO(METH_DECL, struct { StrIdx ident; NodeIdx proto; NodeIdx body; })\
-    DO(METH_PROTO, struct { NodeIdx params; Type ret_type; })           \
-    DO(PARAM, struct { Type type; StrIdx ident; })                      \
-    /* statements */                                                    \
-    DO(ASGN, struct { StrIdx var_ident; NodeIdx expr; })                \
-    DO(IF, struct { NodeIdx cond; NodeIdx then_b; NodeIdx else_b; })    \
-    DO(WHILE, struct { NodeIdx cond; NodeIdx body; })                   \
-    DO(RET, struct { NodeIdx ret_val; })                                \
-    DO(BLOCK, struct { NodeIdx begin; NodeIdx end; })                   \
-    DO(NOP, struct {})                                                  \
-    /* expressions */                                                   \
-    DO(METH_CALL, struct { StrIdx meth_ident; NodeIdx args; })          \
-    DO(VAR, struct { StrIdx ident; })                                   \
-    DO(INT_LIT, struct { int64_t lit_val; })                            \
-    DO(BOOL_LIT, struct { bool lit_val; })                              \
-    DO(UNOP, struct { NodeIdx arg; UnOp op; })                          \
-    DO(BINOP, struct { NodeIdx lhs; NodeIdx rhs; BinOp op; })           \
-    /* lists */                                                         \
-    DO(LIST, struct { NodeIdx begin; NodeIdx end; })                    \
+#define FOR_AST_NODES(DO)                                       \
+    /* lists */                                                 \
+    DO(PROG, struct { NodeIdx begin; NodeIdx end; })            \
+    DO(BLOCK, struct { NodeIdx begin; NodeIdx end; })           \
+    DO(LIST, struct { NodeIdx begin; NodeIdx end; })            \
+    /* declarations */                                          \
+    DO(VAR_INIT, struct { NodeIdx decl; NodeIdx init_expr; })   \
+    DO(VAR_DECL, struct { Type type; StrIdx ident; })           \
+    DO(METH_IMPL, struct { NodeIdx decl; NodeIdx body; })       \
+    DO(METH_DECL, struct { StrIdx ident; NodeIdx proto; })      \
+    DO(METH_PROTO, struct { NodeIdx params; Type ret_type; })   \
+    DO(PARAM, struct { Type type; StrIdx ident; })              \
+    /* statements */                                            \
+    DO(ASGN, struct { StrIdx var_ident; NodeIdx expr; })        \
+    DO(IF_SMP, struct { NodeIdx cond; NodeIdx branch; })        \
+    DO(IF_ALT, struct { NodeIdx cond; NodeIdx branches; })      \
+    DO(WHILE, struct { NodeIdx cond; NodeIdx body; })           \
+    DO(RET, struct { NodeIdx ret_val; })                        \
+    /* expressions */                                           \
+    DO(METH_CALL, struct { StrIdx meth_ident; NodeIdx args; })  \
+    DO(VAR, struct { StrIdx ident; })                           \
+    DO(INT_LIT, struct { int64_t lit_val; })                    \
+    DO(BOOL_LIT, struct { bool lit_val; })                      \
+    DO(UNM, struct { NodeIdx arg; })                            \
+    DO(NEG, struct { NodeIdx arg; })                            \
+    DO(MUL, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(DIV, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(MOD, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(ADD, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(SUB, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(LT, struct { NodeIdx lhs; NodeIdx rhs; })                \
+    DO(GT, struct { NodeIdx lhs; NodeIdx rhs; })                \
+    DO(EQ, struct { NodeIdx lhs; NodeIdx rhs; })                \
+    DO(AND, struct { NodeIdx lhs; NodeIdx rhs; })               \
+    DO(OR, struct { NodeIdx lhs; NodeIdx rhs; })                \
 
 
 #define MK_KIND(name, type) AstNodeKind_ ## name,

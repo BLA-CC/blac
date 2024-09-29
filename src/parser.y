@@ -137,7 +137,6 @@
 %type <NodeIdx>
     meth_impl.opt
     expr.opt
-    else.opt
 %type <Type> type
 
 %%
@@ -157,44 +156,55 @@ program:
     };
 
 scratch.var_decl: type TOK_IDENT "=" expr ";" {
+        nodes_push(AstNode_mk(@2, VAR_DECL, $1, $2));
         nodes_push($4);
-        scratch_push(AstNode_mk(@2, VAR_DECL, $1, $2, nodes.len - 1));
+        scratch_push(AstNode_mk(@2, VAR_INIT, nodes.len - 2, nodes.len - 1));
     };
 
 scratch.meth_decl:
     type TOK_IDENT "("
     { $<uint32_t>$ = scratch.len; }
-    param.list
+    param.list ")"
     {
         uint32_t prm_begin = finish_list($<uint32_t>4);
         nodes_push(AstNode_mk(@3, LIST, prm_begin, nodes.len));
+        nodes_push(AstNode_mk(@1, METH_PROTO, nodes.len - 1, $1));
         $<uint32_t>$ = nodes.len - 1;
     }
-    ")" meth_impl.opt {
-        AstNode proto = AstNode_mk(@1, METH_PROTO, $<uint32_t>6, $1);
-        nodes_push(proto);
-        scratch_push(AstNode_mk(@1, METH_DECL, $2, nodes.len - 1, $8));
+    meth_impl.opt {
+        AstNode decl = AstNode_mk(@2, METH_DECL, $2, $<uint32_t>7);
+        if ($8 == NO_NODE) {
+            scratch_push(decl);
+        } else {
+            nodes_push(decl);
+            scratch_push(AstNode_mk(@1, METH_IMPL, nodes.len - 1, $8));
+        }
     };
 
 scratch.stmt: TOK_IDENT "=" expr ";" {
         nodes_push($3);
         scratch_push(AstNode_mk(@2, ASGN, $1, nodes.len - 1));
     }
-    | "if" "(" expr ")" "then" block else.opt {
+    | "if" "(" expr ")" "then" block {
         nodes_push($3); nodes_push($6);
-        scratch_push(AstNode_mk(@1, IF, nodes.len - 2, nodes.len - 1, nodes.len - 3));
+        scratch_push(AstNode_mk(@1, IF_SMP, nodes.len - 2, nodes.len - 1));
+    }
+    | "if" "(" expr ")" "then" block "else" block {
+        nodes_push($3); nodes_push($6); nodes_push($8);
+        scratch_push(AstNode_mk(@1, IF_ALT, nodes.len - 3, nodes.len - 2));
     }
     | "while" "(" expr ")" block {
         nodes_push($3); nodes_push($5);
         scratch_push(AstNode_mk(@1, WHILE, nodes.len - 2, nodes.len - 1));
     }
     | "return" expr.opt ";" { scratch_push(AstNode_mk(@1, RET, $2)); }
-    | ";" { scratch_push(AstNode_mk(@1, NOP)); }
+    | ";" { /* scratch_push(AstNode_mk(@1, NOP)); */ }
     | meth_call ";" { scratch_push($1); }
     | block { scratch_push($1); }
     ;
 
-expr: meth_call { $$ = $1; }
+expr: "(" error ")" { yyerrok; }
+    | meth_call { $$ = $1; }
     | "(" expr ")" { $$ = $2; }
     | TOK_IDENT { $$ = AstNode_mk(@1, VAR, $1); }
     | TOK_NUMBER { $$ = AstNode_mk(@1, INT_LIT, $1); }
@@ -202,56 +212,56 @@ expr: meth_call { $$ = $1; }
     | TOK_FALSE { $$ = AstNode_mk(@1, BOOL_LIT, false); }
     | "-" expr %prec UNM {
         nodes_push($2);
-        $$ = AstNode_mk(@1, UNOP, nodes.len - 1, UnOp_UNM);
+        $$ = AstNode_mk(@1, UNM, nodes.len - 1);
     }
     | "!" expr %prec NEG {
         nodes_push($2);
-        $$ = AstNode_mk(@1, UNOP, nodes.len - 1, UnOp_NEG);
+        $$ = AstNode_mk(@1, NEG, nodes.len - 1);
     }
     | expr "*" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_MUL);
+        $$ = AstNode_mk(@2, MUL, nodes.len - 2, nodes.len - 1);
     }
     | expr "/" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_DIV);
+        $$ = AstNode_mk(@2, DIV, nodes.len - 2, nodes.len - 1);
     }
     | expr "%" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_MOD);
+        $$ = AstNode_mk(@2, MOD, nodes.len - 2, nodes.len - 1);
     }
     | expr "+" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_ADD);
+        $$ = AstNode_mk(@2, ADD, nodes.len - 2, nodes.len - 1);
     }
     | expr "-" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_SUB);
+        $$ = AstNode_mk(@2, SUB, nodes.len - 2, nodes.len - 1);
     }
     | expr "<" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_LT);
+        $$ = AstNode_mk(@2, LT, nodes.len - 2, nodes.len - 1);
     }
     | expr ">" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_GT);
+        $$ = AstNode_mk(@2, GT, nodes.len - 2, nodes.len - 1);
     }
     | expr "==" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_EQ);
+        $$ = AstNode_mk(@2, EQ, nodes.len - 2, nodes.len - 1);
     }
     | expr "&&" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_AND);
+        $$ = AstNode_mk(@2, AND, nodes.len - 2, nodes.len - 1);
     }
     | expr "||" expr {
         nodes_push($1); nodes_push($3);
-        $$ = AstNode_mk(@2, BINOP, nodes.len - 2, nodes.len - 1, BinOp_OR);
+        $$ = AstNode_mk(@2, OR, nodes.len - 2, nodes.len - 1);
     }
     ;
 
-block:
-    "{"
+block: "{" error "}" { yyerrok; }
+    | "{"
     { $<uint32_t>$ = scratch.len; }
     blk.list "}"
     {
@@ -259,7 +269,7 @@ block:
         $$ = AstNode_mk(@1, BLOCK, blk_begin, nodes.len);
     };
 
-meth_call:
+meth_call: TOK_IDENT "(" error ")" { yyerrok; } |
     TOK_IDENT "("
     { $<uint32_t>$ = scratch.len; }
     arg.list ")"
@@ -320,11 +330,6 @@ meth_impl.opt
 expr.opt
     : { $$ = NO_NODE; }
     | expr { nodes_push($1); $$ = nodes.len - 1; }
-    ;
-
-else.opt
-    : { $$ = NO_NODE; }
-    | "else" block { nodes_push($2); $$ = nodes.len - 1; }
     ;
 
 %%
