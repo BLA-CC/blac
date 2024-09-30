@@ -2,6 +2,7 @@
 
 #include "str_pool.h"
 #include "parser.h"
+#include "display_ast.h"
 
 int main(int argc, char *argv[]) {
     (void)argc;
@@ -25,5 +26,6 @@ int main(int argc, char *argv[]) {
         printf("%u %u %u\n", n->kind, n->data.lhs, n->data.rhs);
     }
 
+    ast_display(ast, 0, strs, stdout);
     return 0;
 }
