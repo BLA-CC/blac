@@ -1,13 +1,13 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {
     Type_VOID,

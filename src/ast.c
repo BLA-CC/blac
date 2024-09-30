@@ -19,8 +19,9 @@ AstNodeFull_List Ast_full_block(Ast ast, NodeIdx idx) {
 AstNodeFull_VarDecl Ast_full_var_decl(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
-    assert(node->kind == AstNodeKind_VAR_DECL ||
-           node->kind == AstNodeKind_VAR_DECL_INIT);
+    assert(
+        node->kind == AstNodeKind_VAR_DECL ||
+        node->kind == AstNodeKind_VAR_DECL_INIT);
 
     AstNodeFull_VarDecl result;
     if (node->kind == AstNodeKind_VAR_DECL_INIT) {
@@ -37,8 +38,9 @@ AstNodeFull_VarDecl Ast_full_var_decl(Ast ast, NodeIdx idx) {
 AstNodeFull_MethDecl Ast_full_meth_decl(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
-    assert(node->kind == AstNodeKind_METH_DECL ||
-           node->kind == AstNodeKind_METH_DECL_IMPL);
+    assert(
+        node->kind == AstNodeKind_METH_DECL ||
+        node->kind == AstNodeKind_METH_DECL_IMPL);
 
     AstNodeFull_MethDecl result;
     if (node->kind == AstNodeKind_METH_DECL_IMPL) {
@@ -64,15 +66,17 @@ AstNodeFull_Asgn Ast_full_asgn(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
     assert(node->kind == AstNodeKind_ASGN);
-    return (AstNodeFull_Asgn){ .target = node->data.lhs, .expr = node->data.rhs };
+    return (AstNodeFull_Asgn){ .target = node->data.lhs,
+                               .expr = node->data.rhs };
 }
 
 AstNodeFull_If Ast_full_if(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
-    assert(node->kind == AstNodeKind_IF_SMP ||
-           node->kind == AstNodeKind_IF_ALT);
-    AstNodeFull_If result = { .cond = node->data.lhs, .then_b = node->data.rhs };
+    assert(
+        node->kind == AstNodeKind_IF_SMP || node->kind == AstNodeKind_IF_ALT);
+    AstNodeFull_If result = { .cond = node->data.lhs,
+                              .then_b = node->data.rhs };
     if (node->kind == AstNodeKind_IF_ALT) {
         result.else_b = node->data.rhs + 1;
     } else {
@@ -85,7 +89,8 @@ AstNodeFull_While Ast_full_while(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
     assert(node->kind == AstNodeKind_WHILE);
-    return (AstNodeFull_While){ .cond = node->data.lhs, .body = node->data.rhs };
+    return (AstNodeFull_While){ .cond = node->data.lhs,
+                                .body = node->data.rhs };
 }
 
 AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx) {
@@ -104,8 +109,7 @@ AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx) {
 AstNodeFull_UnOp Ast_full_unop(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
-    assert(node->kind == AstNodeKind_UNM ||
-           node->kind == AstNodeKind_NEG);
+    assert(node->kind == AstNodeKind_UNM || node->kind == AstNodeKind_NEG);
     return (AstNodeFull_UnOp){ .arg = node->data.lhs, .op = (UnOp)node->kind };
 }
 
@@ -113,9 +117,7 @@ AstNodeFull_BinOp Ast_full_binop(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
     assert(node->kind >= AstNodeKind_MUL);
-    return (AstNodeFull_BinOp){
-        .lhs = node->data.lhs,
-        .rhs = node->data.rhs,
-        .op = (BinOp)node->kind };
+    return (AstNodeFull_BinOp){ .lhs = node->data.lhs,
+                                .rhs = node->data.rhs,
+                                .op = (BinOp)node->kind };
 }
-

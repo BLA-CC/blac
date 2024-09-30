@@ -1,11 +1,11 @@
 #ifndef _ARGS_H
 #define _ARGS_H
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+#include <stdbool.h>
 
 typedef struct {
     char *input;
