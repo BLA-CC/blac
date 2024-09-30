@@ -1,70 +1,77 @@
 #include <gtest/gtest.h>
 
 #include "parser.h"
+#include "ast.h"
 #include "str_pool.h"
 #include "common.h"
 
 class ParserTest : public ::testing::Test {
   protected:
-    StrPool str_pool = { 0 };
+    StrPool str_pool;
     yyscan_t scanner;
     YY_BUFFER_STATE buffer;
-    Parser parser = { 0 };
+    Parser parser;
 
-    void SetUp() override { yylex_init_extra(&str_pool, &scanner); }
+    void SetUp() override {
+        str_pool = { 0 };
+        yylex_init_extra(&str_pool, &scanner); 
+    }
 
     void TearDown() override {
         yylex_destroy(scanner);
-        StrPool_release(&str_pool);
     }
 
-    int ParseString(const char *input) {
+    int ParseString(const char *input, Ast *ast) {
+        parser = { 0 };
         YY_BUFFER_STATE buffer = yy_scan_string(input, scanner);
         int result = yyparse(&parser, scanner);
+
+        if (result != 0) {
+            return result;
+        }
+
+        *ast = Parser_mk_ast(&parser);
         yy_delete_buffer(buffer, scanner);
         return result;
     }
 
-    AstNode Root() { return parser.nodes.elems[0]; }
+    AstNode Root(Ast ast) { return ast.nodes[0]; }
 
-    AstNode Node(NodeIdx idx) { return parser.nodes.elems[idx]; }
+    // AstNode Node(NodeIdx idx) { return parser.nodes.elems[idx]; }
 
-    int AstLen() { return parser.nodes.len; }
+    // AstNode FirstMethod() {
+    //     return Node(Node(Root().data.PROG.meths).data.LIST.begin);
+    // }
 
-    AstNode FirstMethod() {
-        return Node(Node(Root().data.PROG.meths).data.LIST.begin);
-    }
 
-    AstNode FirstVarDecl(AstNode meth) {
-        return Node(Node(Node(meth.data.METH_DECL.body).data.BLOCK.vars)
-                        .data.LIST.begin);
-    }
 
-    void AssertVarDecl(const AstNode &var_decl, Type type, const char *name) {
-        ASSERT_EQ(var_decl.data.VAR_DECL.type, type);
-        ASSERT_EQ(var_decl.data.VAR_DECL.ident, StrPool_put(&str_pool, name));
-    }
+    // void AssertVarDecl(const AstNode &var_decl, Type type, const char *name) {
+    //     ASSERT_EQ(var_decl.data.VAR_DECL.type, type);
+    //     ASSERT_EQ(var_decl.data.VAR_DECL.ident, StrPool_put(&str_pool, name));
+    // }
 
-    void AssertBinOp(
-        const AstNode &node,
-        BinOp op,
-        AstNodeKind lhs_kind,
-        AstNodeKind rhs_kind) {
-        ASSERT_EQ(node.kind, AstNodeKind_BINOP);
-        ASSERT_EQ(node.data.BINOP.op, op);
-        ASSERT_EQ(Node(node.data.BINOP.lhs).kind, lhs_kind);
-        ASSERT_EQ(Node(node.data.BINOP.rhs).kind, rhs_kind);
-    }
+    // void AssertBinOp(
+    //     const AstNode &node,
+    //     BinOp op,
+    //     AstNodeKind lhs_kind,
+    //     AstNodeKind rhs_kind) {
+    //     ASSERT_EQ(node.kind, AstNodeKind_BINOP);
+    //     ASSERT_EQ(node.data.BINOP.op, op);
+    //     ASSERT_EQ(Node(node.data.BINOP.lhs).kind, lhs_kind);
+    //     ASSERT_EQ(Node(node.data.BINOP.rhs).kind, rhs_kind);
+    // }
 };
 
 TEST_F(ParserTest, ParseProgram) {
-    ASSERT_NE(ParseString("integer x = 42;"), 0);
-    ASSERT_EQ(ParseString("program{}"), 0);
-    ASSERT_EQ(AstLen(), 1);
-    ASSERT_EQ(Root().kind, AstNodeKind_PROG);
+    Ast ast;
+    ASSERT_NE(ParseString("integer a = 4;", &ast), 0);
+    ASSERT_EQ(ParseString("program{}", &ast), 0);
+    ASSERT_EQ(ast.len, 1);
+    ASSERT_EQ(Root(ast).kind, AstNodeKind_PROG);
 }
 
 TEST_F(ParserTest, ExampleProgram) {
+    Ast ast;
     ASSERT_EQ(
         ParseString("program {\n"
                     "    void main() {\n"
@@ -76,63 +83,49 @@ TEST_F(ParserTest, ExampleProgram) {
                     "            return printint(inc(y));\n"
                     "        }\n"
                     "    }\n"
-                    "}\n"),
+                    "}\n", &ast),
         0);
 }
 
 TEST_F(ParserTest, ProgramBody) {
+    Ast ast;
     ASSERT_EQ(
         ParseString(" program {\n"
                     "     integer ivar = 0;\n"
-                    "     bool bvar = 0;\n"
                     "     integer method(integer param){ return; }\n"
-                    "     void external() extern;\n"
-                    " }\n"),
-        0);
-    ASSERT_EQ(AstLen(), 16);
-
-    ASSERT_EQ(Root().kind, AstNodeKind_PROG);
-
-    AstNode vars = Node(Root().data.PROG.vars);
-    AstNode meths = Node(Root().data.PROG.meths);
-
-    for (NodeIdx i = vars.data.LIST.begin; i < vars.data.LIST.end; i++) {
-        ASSERT_EQ(Node(i).kind, AstNodeKind_VAR_DECL);
-    }
-
-    for (NodeIdx i = meths.data.LIST.begin; i < meths.data.LIST.end; i++) {
-        ASSERT_TRUE(
-            (Node(i).kind == AstNodeKind_METH_DECL) ||
-            (Node(i).kind == AstNodeKind_METH_PROTO));
-    }
-
-    ASSERT_NE(
-        ParseString(" program {\n"
-                    "     void method(){ }\n"
                     "     bool bvar = 0;\n"
-                    " }\n"),
+                    "     void external() extern;\n"
+                    " }\n", &ast),
         0);
+    ASSERT_EQ(ast.len, 17);
+
+    AstNodeFull_List prog = Ast_full_prog(ast);
+    ASSERT_EQ(prog.end - prog.begin, 4);
 }
 
 TEST_F(ParserTest, ParseVariableDecl) {
+    Ast ast;
     ASSERT_EQ(
         ParseString(" program {\n"
                     "     bool bvar = true;\n"
                     "     integer ivar = 0;\n"
-                    " }\n"),
+                    " }\n", &ast),
         0);
 
-    ASSERT_EQ(AstLen(), 6);
+    ASSERT_EQ(ast.len, 7);
 
-    AstNode decl_node = Node(Node(Root().data.PROG.vars).data.LIST.begin);
-    AssertVarDecl(decl_node, Type_BOOL, "bvar");
-    ASSERT_EQ(Node(decl_node.data.VAR_DECL.expr).kind, AstNodeKind_BOOL_LIT);
+    AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, Ast_full_prog(ast).begin);
+    ASSERT_EQ(var_decl.type, Type_BOOL);
+    ASSERT_EQ(var_decl.ident, StrPool_put(&str_pool, "bvar"));
+    ASSERT_NE(var_decl.init_expr, NO_NODE);
 
-    ASSERT_NE(ParseString("program { bool bvar; }"), 0);
-    ASSERT_NE(ParseString("program { bool; }"), 0);
+
+    ASSERT_NE(ParseString("program { bool bvar; }", &ast), 0);
+    ASSERT_NE(ParseString("program { bool; }", &ast), 0);
 }
 
 TEST_F(ParserTest, ParseMethodDecl) {
+    Ast ast;
     ASSERT_EQ(
         ParseString(
             " program {\n"
@@ -140,23 +133,38 @@ TEST_F(ParserTest, ParseMethodDecl) {
             "     integer func1(integer a) { integer foo = 2; return; }\n"
             "     bool func2() { return true; }\n"
             "     void print(integer i) extern;\n"
-            " }\n"),
+            " }\n", &ast),
         0);
-    ASSERT_EQ(AstLen(), 33);
-    AstNode main = FirstMethod();
 
-    ASSERT_EQ(main.data.METH_DECL.ident, StrPool_put(&str_pool, "main"));
-    ASSERT_EQ(Node(main.data.METH_DECL.body).kind, AstNodeKind_BLOCK);
+    ASSERT_EQ(ast.len, 33);
+    AstNodeFull_MethDecl meth = Ast_full_meth_decl(ast, Ast_full_prog(ast).begin);
 
-    AstNode main_proto = Node(main.data.METH_DECL.proto);
-    ASSERT_EQ(main_proto.data.METH_PROTO.ret_type, Type_VOID);
+    ASSERT_EQ(meth.ident, StrPool_put(&str_pool, "main"));
+    ASSERT_EQ(meth.ret_type, Type_VOID);
 
-    AstNode params = Node(main_proto.data.METH_PROTO.params);
-    AssertVarDecl(Node(params.data.LIST.begin), Type_INT, "a");
-    AssertVarDecl(Node(params.data.LIST.end - 1), Type_BOOL, "b");
+    ASSERT_EQ(
+        ast.nodes[meth.params_begin].data.lhs,
+        Type_INT
+    );
+
+    ASSERT_EQ(
+        ast.nodes[meth.params_begin].data.rhs,
+        StrPool_put(&str_pool, "a")
+    );
+
+    ASSERT_EQ(
+        ast.nodes[meth.params_begin + 1 ].data.lhs,
+        Type_BOOL
+    );
+
+    ASSERT_EQ(
+        ast.nodes[meth.params_begin + 1].data.rhs,
+        StrPool_put(&str_pool, "b")
+    );
 }
 
 TEST_F(ParserTest, ParseBlock) {
+    Ast ast;
     ASSERT_EQ(
         ParseString(" program {\n"
                     "     void main() {\n"
@@ -165,18 +173,7 @@ TEST_F(ParserTest, ParseBlock) {
                     "         x = true;\n"
                     "         w = true;\n"
                     "     }\n"
-                    " }\n"),
-        0);
-
-    ASSERT_NE(
-        ParseString(" program {\n"
-                    "     void main() {\n"
-                    "         integer x = 10;\n"
-                    "         x = true;\n"
-                    "         bool w = false;\n"
-                    "         w = true;\n"
-                    "     }\n"
-                    " }\n"),
+                    " }\n", &ast),
         0);
 
     ASSERT_NE(
@@ -184,11 +181,13 @@ TEST_F(ParserTest, ParseBlock) {
                     "     void main() {\n"
                     "         void func(integer a) {}\n"
                     "     }\n"
-                    " }\n"),
+                    " }\n", &ast),
         0);
 }
 
+
 TEST_F(ParserTest, ParseStatements) {
+    Ast ast;
     ASSERT_EQ(
         ParseString(" program {\n"
                     "     void main() {\n"
@@ -204,50 +203,35 @@ TEST_F(ParserTest, ParseStatements) {
                     "         }\n"
                     "         return 0;\n"
                     "     }\n"
-                    " }\n"),
+                    " }\n", &ast),
         0);
 
-    AstNode stmts =
-        Node(Node(FirstMethod().data.METH_DECL.body).data.BLOCK.stmts);
 
-    ASSERT_EQ(stmts.kind, AstNodeKind_LIST);
-    ASSERT_EQ(stmts.data.LIST.end - stmts.data.LIST.begin, 5);
-
-    AstNode assign_stmt = Node(stmts.data.LIST.begin);
-    ASSERT_EQ(assign_stmt.kind, AstNodeKind_ASGN);
-
-    AstNode if_stmt = Node(stmts.data.LIST.begin + 2);
-    ASSERT_EQ(if_stmt.kind, AstNodeKind_IF);
+    AstNodeFull_List body = Ast_full_block(ast, Ast_full_meth_decl(ast, Ast_full_prog(ast).begin).body);      
+    ASSERT_EQ(body.end- body.begin, 7);
 }
 
 TEST_F(ParserTest, ParseArithExpression) {
-    ASSERT_EQ(ParseString("program { void f() { integer x = 1 + 2 * 3; }}"), 0);
+    Ast ast;
+    ASSERT_EQ(ParseString("program { integer x = 1 + 2 * 3; }", &ast), 0);
 
-    AstNode var_decl = FirstVarDecl(FirstMethod());
-    AssertVarDecl(var_decl, Type_INT, "x");
+    AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, Ast_full_prog(ast).begin);
+    ASSERT_EQ(var_decl.ident, StrPool_put(&str_pool, "x"));
+    ASSERT_EQ(var_decl.type, Type_INT);
 
-    AstNode expr = Node(var_decl.data.VAR_DECL.expr);
-    AssertBinOp(expr, BinOp_ADD, AstNodeKind_INT_LIT, AstNodeKind_BINOP);
+    AstNodeFull_BinOp binop = Ast_full_binop(ast, var_decl.init_expr);
+    ASSERT_EQ(binop.op, BinOp_ADD);
+    ASSERT_EQ(Ast_full_binop(ast, binop.rhs).op, BinOp_MUL);
 
-    AstNode right = Node(expr.data.BINOP.rhs);
-    AssertBinOp(right, BinOp_MUL, AstNodeKind_INT_LIT, AstNodeKind_INT_LIT);
-
-    ASSERT_NE(ParseString("program { void f() { integer x = 10 + ; }}"), 0);
-    ASSERT_NE(ParseString("program { void f() { integer x = ; }}"), 0);
+    ASSERT_NE(ParseString("program { void f() { integer x = 10 + ; }}", &ast), 0);
+    ASSERT_NE(ParseString("program { void f() { integer x = ; }}", &ast), 0);
 }
 
 TEST_F(ParserTest, ParseBoolExpressions) {
+    Ast ast;
     ASSERT_EQ(
-        ParseString(" program {\n"
-                    "     void main() {\n"
-                    "         bool result = true && false;\n"
-                    "     }\n"
-                    " }\n"),
-        0);
+        ParseString(" program { bool result = true && false; }\n", &ast),0);
 
-    AstNode decl = FirstVarDecl(FirstMethod());
-    AssertVarDecl(decl, Type_BOOL, "result");
-
-    AstNode expr = Node(decl.data.VAR_DECL.expr);
-    AssertBinOp(expr, BinOp_AND, AstNodeKind_BOOL_LIT, AstNodeKind_BOOL_LIT);
+    AstNodeFull_BinOp binop = Ast_full_binop(ast, Ast_full_var_decl(ast, Ast_full_prog(ast).begin).init_expr);
+    ASSERT_EQ(binop.op, BinOp_AND);
 }
