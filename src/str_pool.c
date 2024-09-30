@@ -10,12 +10,13 @@ void StrPool_release(StrPool *self) {
     }
 
     charVec_free(&self->strs);
-    *self = (StrPool){0};
+    *self = (StrPool){ 0 };
 }
 
 StrIdx StrPool_put(StrPool *self, const char *sym) {
     // already in table
-    for (StrIdx i = 0; i < self->strs.len; i += strlen(&self->strs.elems[i]) + 1) {
+    for (StrIdx i = 0; i < self->strs.len;
+         i += strlen(&self->strs.elems[i]) + 1) {
         if (strcmp(sym, &self->strs.elems[i]) == 0) {
             return i;
         }
@@ -33,7 +34,7 @@ StrIdx StrPool_put(StrPool *self, const char *sym) {
 }
 
 const char *StrPool_get(StrPool *self, StrIdx id) {
-    if (self->strs.len<= id) {
+    if (self->strs.len <= id) {
         return NULL;
     }
 

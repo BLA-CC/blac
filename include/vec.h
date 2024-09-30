@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include "common.h"
 
+/**
+ * Generic dynamic array.
+ * Provides prototypes and implementation separately.
+ */
+
 #define Vec(T) T##Vec
 
 #define Vec_Proto(T)                                                           \

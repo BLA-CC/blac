@@ -20,7 +20,22 @@ Just running the makefile should suffice
 make
 ```
 
-That makes the `c-tds` binary available to run the compiler
+### Running and Usage
+
+The previous sub-section should result in a `c-tds` binary of the compiler, the cli can be seen with
+
+```sh
+./c-tds --help
+
+# Usage: c-tds [options] input
+#     -h, --help            show this help message and exit
+#
+# Compile options
+#     -o, --output=<str>    output file (default=./a.out)
+#     -t, --target=<str>    scan|parse|ir|asm (default=asm)
+#     -O, --optimize=<str>  none|all (default=none)
+#     -d, --debug           allow extra debug info (off by default)
+```
 
 ### Testing
 

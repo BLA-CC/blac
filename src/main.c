@@ -18,6 +18,9 @@ int main(int argc, char *argv[]) {
     if (yyparse(&parser, scanner)) {
         return 1;
     }
+
+    yylex_destroy(scanner);
+
     Ast ast = Parser_mk_ast(&parser);
 
     for (uint32_t i = 0; i < ast.len; i++) {
@@ -27,5 +30,9 @@ int main(int argc, char *argv[]) {
     }
 
     ast_display(ast, 0, strs, stdout);
+
+    Ast_release(&ast);
+    StrPool_release(&strs);
+
     return 0;
 }

@@ -1,5 +1,5 @@
 *.o
-blac
+c-tds
 include/_parser.h
 include/_lexer.h
 src/parser.c
