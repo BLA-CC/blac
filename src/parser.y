@@ -88,7 +88,7 @@
 
     Ast Parser_mk_ast(Parser *parser) {
         assert(nodes.len > 0);
-        AstNode *ast_nodes = realloc(nodes.elems, nodes.len);
+        AstNode *ast_nodes = realloc(nodes.elems, nodes.len*sizeof(AstNode));
         assert(ast_nodes != NULL);
         Ast result = { ast_nodes, nodes.len };
         AstNodeVec_free(&scratch);
