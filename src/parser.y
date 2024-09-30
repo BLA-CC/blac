@@ -148,17 +148,17 @@ program:
     }
     toplvl.list "}"
     {
-        uint32_t toplvl_begin = finish_list($<uint32_t>3);
+        uint32_t prog_begin = finish_list($<uint32_t>3);
         AstNode *root = &nodes.elems[0];
-        root->data.PROG.begin = toplvl_begin;
-        root->data.PROG.end = nodes.len;
+        root->data.lhs = prog_begin;
+        root->data.rhs = nodes.len;
         return yynerrs;
     };
 
 scratch.var_decl: type TOK_IDENT "=" expr ";" {
         nodes_push(AstNode_mk(@2, VAR_DECL, $1, $2));
         nodes_push($4);
-        scratch_push(AstNode_mk(@2, VAR_INIT, nodes.len - 2, nodes.len - 1));
+        scratch_push(AstNode_mk(@2, VAR_DECL_INIT, nodes.len - 2, nodes.len - 1));
     };
 
 scratch.meth_decl:
@@ -166,8 +166,8 @@ scratch.meth_decl:
     { $<uint32_t>$ = scratch.len; }
     param.list ")"
     {
-        uint32_t prm_begin = finish_list($<uint32_t>4);
-        nodes_push(AstNode_mk(@3, LIST, prm_begin, nodes.len));
+        uint32_t params_begin = finish_list($<uint32_t>4);
+        nodes_push(AstNode_mk(@3, LIST, params_begin, nodes.len));
         nodes_push(AstNode_mk(@1, METH_PROTO, nodes.len - 1, $1));
         $<uint32_t>$ = nodes.len - 1;
     }
@@ -177,7 +177,7 @@ scratch.meth_decl:
             scratch_push(decl);
         } else {
             nodes_push(decl);
-            scratch_push(AstNode_mk(@1, METH_IMPL, nodes.len - 1, $8));
+            scratch_push(AstNode_mk(@1, METH_DECL_IMPL, nodes.len - 1, $8));
         }
     };
 
@@ -197,7 +197,7 @@ scratch.stmt: TOK_IDENT "=" expr ";" {
         nodes_push($3); nodes_push($5);
         scratch_push(AstNode_mk(@1, WHILE, nodes.len - 2, nodes.len - 1));
     }
-    | "return" expr.opt ";" { scratch_push(AstNode_mk(@1, RET, $2)); }
+    | "return" expr.opt ";" { scratch_push(AstNode_mk(@1, RET, .lhs=$2)); }
     | ";" { /* scratch_push(AstNode_mk(@1, NOP)); */ }
     | meth_call ";" { scratch_push($1); }
     | block { scratch_push($1); }
@@ -206,17 +206,17 @@ scratch.stmt: TOK_IDENT "=" expr ";" {
 expr: "(" error ")" { yyerrok; }
     | meth_call { $$ = $1; }
     | "(" expr ")" { $$ = $2; }
-    | TOK_IDENT { $$ = AstNode_mk(@1, VAR, $1); }
-    | TOK_NUMBER { $$ = AstNode_mk(@1, INT_LIT, $1); }
-    | TOK_TRUE { $$ = AstNode_mk(@1, BOOL_LIT, true); }
-    | TOK_FALSE { $$ = AstNode_mk(@1, BOOL_LIT, false); }
+    | TOK_IDENT { $$ = AstNode_mk(@1, VAR, .lhs=$1); }
+    | TOK_NUMBER { $$ = AstNode_mk(@1, INT_LIT, .lhs=$1); }
+    | TOK_TRUE { $$ = AstNode_mk(@1, BOOL_LIT, .lhs=true); }
+    | TOK_FALSE { $$ = AstNode_mk(@1, BOOL_LIT, .lhs=false); }
     | "-" expr %prec UNM {
         nodes_push($2);
-        $$ = AstNode_mk(@1, UNM, nodes.len - 1);
+        $$ = AstNode_mk(@1, UNM, .lhs=nodes.len - 1);
     }
     | "!" expr %prec NEG {
         nodes_push($2);
-        $$ = AstNode_mk(@1, NEG, nodes.len - 1);
+        $$ = AstNode_mk(@1, NEG, .lhs=nodes.len - 1);
     }
     | expr "*" expr {
         nodes_push($1); nodes_push($3);
@@ -265,8 +265,8 @@ block: "{" error "}" { yyerrok; }
     { $<uint32_t>$ = scratch.len; }
     blk.list "}"
     {
-        uint32_t blk_begin = finish_list($<uint32_t>2);
-        $$ = AstNode_mk(@1, BLOCK, blk_begin, nodes.len);
+        uint32_t block_begin = finish_list($<uint32_t>2);
+        $$ = AstNode_mk(@1, BLOCK, block_begin, nodes.len);
     };
 
 meth_call: TOK_IDENT "(" error ")" { yyerrok; } |
@@ -274,8 +274,8 @@ meth_call: TOK_IDENT "(" error ")" { yyerrok; } |
     { $<uint32_t>$ = scratch.len; }
     arg.list ")"
     {
-        uint32_t arg_begin = finish_list($<uint32_t>3);
-        nodes_push(AstNode_mk(@2, LIST, arg_begin, nodes.len));
+        uint32_t args_begin = finish_list($<uint32_t>3);
+        nodes_push(AstNode_mk(@2, LIST, args_begin, nodes.len));
         $$ = AstNode_mk(@1, METH_CALL, $1, nodes.len - 1);
     };
 

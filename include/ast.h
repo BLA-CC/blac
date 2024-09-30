@@ -1,7 +1,6 @@
 #ifndef _AST_H
 #define _AST_H
 
-#include <stdint.h>
 #include "common.h"
 #include "str_pool.h"
 #include "vec.h"
@@ -14,20 +13,6 @@ typedef struct {
     uint32_t line;
     uint32_t col;
 } Location;
-
-typedef enum {
-    BinOp_MUL, BinOp_DIV, BinOp_MOD,
-    BinOp_ADD, BinOp_SUB,
-    BinOp_LT, BinOp_GT,
-    BinOp_EQ,
-    BinOp_AND,
-    BinOp_OR,
-} BinOp;
-
-typedef enum {
-    UnOp_UNM,
-    UnOp_NEG,
-} UnOp;
 
 typedef uint32_t NodeIdx;
 #define NO_NODE 0
@@ -83,70 +68,50 @@ typedef uint32_t NodeIdx;
  *          zero is represented as NO_NODE
  * */
 
-#define FOR_AST_NODES(DO)                                       \
-    /* lists */                                                 \
-    DO(PROG, struct { NodeIdx begin; NodeIdx end; })            \
-    DO(BLOCK, struct { NodeIdx begin; NodeIdx end; })           \
-    DO(LIST, struct { NodeIdx begin; NodeIdx end; })            \
-    /* declarations */                                          \
-    DO(VAR_INIT, struct { NodeIdx decl; NodeIdx init_expr; })   \
-    DO(VAR_DECL, struct { Type type; StrIdx ident; })           \
-    DO(METH_IMPL, struct { NodeIdx decl; NodeIdx body; })       \
-    DO(METH_DECL, struct { StrIdx ident; NodeIdx proto; })      \
-    DO(METH_PROTO, struct { NodeIdx params; Type ret_type; })   \
-    DO(PARAM, struct { Type type; StrIdx ident; })              \
-    /* statements */                                            \
-    DO(ASGN, struct { StrIdx var_ident; NodeIdx expr; })        \
-    DO(IF_SMP, struct { NodeIdx cond; NodeIdx branch; })        \
-    DO(IF_ALT, struct { NodeIdx cond; NodeIdx branches; })      \
-    DO(WHILE, struct { NodeIdx cond; NodeIdx body; })           \
-    DO(RET, struct { NodeIdx ret_val; })                        \
-    /* expressions */                                           \
-    DO(METH_CALL, struct { StrIdx meth_ident; NodeIdx args; })  \
-    DO(VAR, struct { StrIdx ident; })                           \
-    DO(INT_LIT, struct { int64_t lit_val; })                    \
-    DO(BOOL_LIT, struct { bool lit_val; })                      \
-    DO(UNM, struct { NodeIdx arg; })                            \
-    DO(NEG, struct { NodeIdx arg; })                            \
-    DO(MUL, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(DIV, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(MOD, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(ADD, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(SUB, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(LT, struct { NodeIdx lhs; NodeIdx rhs; })                \
-    DO(GT, struct { NodeIdx lhs; NodeIdx rhs; })                \
-    DO(EQ, struct { NodeIdx lhs; NodeIdx rhs; })                \
-    DO(AND, struct { NodeIdx lhs; NodeIdx rhs; })               \
-    DO(OR, struct { NodeIdx lhs; NodeIdx rhs; })                \
-
-
-#define MK_KIND(name, type) AstNodeKind_ ## name,
 typedef enum {
-    FOR_AST_NODES(MK_KIND)
+    AstNodeKind_PROG,
+    AstNodeKind_BLOCK,
+    AstNodeKind_LIST,
+    AstNodeKind_VAR_DECL_INIT,
+    AstNodeKind_VAR_DECL,
+    AstNodeKind_METH_DECL_IMPL,
+    AstNodeKind_METH_DECL,
+    AstNodeKind_METH_PROTO,
+    AstNodeKind_PARAM,
+    AstNodeKind_ASGN,
+    AstNodeKind_IF_SMP,
+    AstNodeKind_IF_ALT,
+    AstNodeKind_WHILE,
+    AstNodeKind_RET,
+    AstNodeKind_METH_CALL,
+    AstNodeKind_VAR,
+    AstNodeKind_INT_LIT,
+    AstNodeKind_BOOL_LIT,
+    AstNodeKind_UNM,
+    AstNodeKind_NEG,
+    AstNodeKind_MUL,
+    AstNodeKind_DIV,
+    AstNodeKind_MOD,
+    AstNodeKind_ADD,
+    AstNodeKind_SUB,
+    AstNodeKind_LT,
+    AstNodeKind_GT,
+    AstNodeKind_EQ,
+    AstNodeKind_AND,
+    AstNodeKind_OR,
 } AstNodeKind;
-#undef MK_KINDS
-
-#define MK_DATA(name, type) typedef type AstNodeData_ ## name;
-FOR_AST_NODES(MK_DATA)
-#undef MK_DATA
-
-#define MK_UNION_FIELD(name, type) AstNodeData_ ## name name;
-typedef union {
-    FOR_AST_NODES(MK_UNION_FIELD)
-} AstNodeData;
-#undef MK_UNION_FIELD
 
 typedef struct {
     Location loc;
     AstNodeKind kind;
-    AstNodeData data;
+    struct { NodeIdx lhs, rhs; } data;
 } AstNode;
 
 #define AstNode_mk(l, k, ds...)     \
     (AstNode){                      \
         .loc = l,                   \
         .kind = AstNodeKind_ ## k,  \
-        .data = { .k = { ds } }     \
+        .data = { ds }              \
     }
 
 Vec_Proto(AstNode);

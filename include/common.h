@@ -1,6 +1,8 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include <assert.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
