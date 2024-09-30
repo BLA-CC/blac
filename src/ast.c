@@ -1,5 +1,9 @@
 #include "ast.h"
 
+void Ast_release(Ast *ast) {
+    free(ast->nodes);
+}
+
 Vec_Impl(AstNode);
 
 AstNodeFull_List Ast_full_prog(Ast ast) {

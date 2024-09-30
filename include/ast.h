@@ -189,6 +189,8 @@ typedef struct {
     uint32_t len;
 } Ast;
 
+void Ast_release(Ast *ast);
+
 typedef uint32_t NodeIdx;
 #define NO_NODE 0
 
@@ -304,14 +306,6 @@ AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx);
 AstNodeFull_UnOp Ast_full_unop(Ast ast, NodeIdx idx);
 
 AstNodeFull_BinOp Ast_full_binop(Ast ast, NodeIdx idx);
-
-#define AST_LIST_FOREACH(ast, begin, end, var, action)                         \
-    do {                                                                       \
-        for (uint32_t _idx_##var = begin; _idx_##var < end; _idx_##var++) {    \
-            AstNode *var = &ast[_idx_##var];                                   \
-            action                                                             \
-        }                                                                      \
-    } while (0)
 
 #ifdef __cplusplus
 }
