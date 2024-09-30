@@ -55,7 +55,7 @@ static const char *_str_type(Type type) {
     case Type_VOID:
         return "void";
     case Type_INT:
-        return "int";
+        return "integer";
     case Type_BOOL:
         return "bool";
     default:
@@ -79,7 +79,7 @@ void display_list(Visitor v, NodeIdx begin, NodeIdx end) {
 
 void display_prog(Visitor v, AstNodeFull_List prog_n) {
     FILE *stream = (FILE *)visitor_get_ctx(v);
-    fprintf(stream, "program {");
+    fprintf(stream, "program {\n");
     display_list(v, prog_n.begin, prog_n.end);
     fprintf(stream, "}\n");
 }
@@ -115,14 +115,14 @@ void display_meth_decl(Visitor v, AstNodeFull_MethDecl meth_decl_n) {
     fprintf(stream, ")");
 
     if (meth_decl_n.body != NO_NODE) {
-        fprintf(stream, "{");
+        fprintf(stream, "{\n");
         ast_visit(v, meth_decl_n.body);
         fprintf(stream, "}");
     } else {
         fprintf(stream, " extern;");
     }
 
-    fprintf(stream, ";\n");
+    fprintf(stream, "\n");
 
 }
 
@@ -143,7 +143,7 @@ void display_if(Visitor v, AstNodeFull_If if_n) {
     fprintf(stream, "}");
 
     if (if_n.else_b != NO_NODE) {
-        fprintf(stream, " else {");
+        fprintf(stream, " else {\n");
         ast_visit(v, if_n.else_b);
         fprintf(stream, "}");
     }
@@ -177,7 +177,7 @@ void display_meth_call(Visitor v, AstNodeFull_MethCall meth_call_n) {
     StrPool strs = visitor_get_strs(v);
     fprintf(stream, "%s(",StrPool_get(&strs, meth_call_n.meth_ident));
     display_list(v, meth_call_n.args_begin, meth_call_n.args_end);
-    fprintf(stream, ");\n");
+    fprintf(stream, ")");
 }
 
 void display_var(Visitor v, StrIdx ident) {
@@ -198,7 +198,7 @@ void display_asgn(Visitor v, AstNodeFull_Asgn asgn_n) {
     FILE *stream = (FILE *)visitor_get_ctx(v);
     StrPool strs = visitor_get_strs(v);
 
-    fprintf(stream, "%s = ", StrPool_get(&strs, asgn_n.expr));
+    fprintf(stream, "%s = ", StrPool_get(&strs, asgn_n.target));
     ast_visit(v, asgn_n.expr);
     fprintf(stream, ";\n");
 }

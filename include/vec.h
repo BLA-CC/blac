@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "common.h"
 
 #define Vec(T) T##Vec
 
@@ -31,8 +32,7 @@
         vec->elems[vec->len++] = data;                                         \
     }                                                                          \
     T T##Vec_pop(T##Vec *vec) {                                                \
-        if (vec->len == 0)                                                     \
-            return (T){ 0 };                                                   \
+        assert(vec->len > 0);                                                  \
         return vec->elems[--vec->len];                                         \
     }                                                                          \
     void T##Vec_reserve(T##Vec *vec, uint32_t count) {                         \

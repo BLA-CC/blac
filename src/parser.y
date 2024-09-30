@@ -20,6 +20,8 @@
         AstNodeVec nodes;
         AstNodeVec scratch;
     } Parser;
+
+    Ast Parser_mk_ast(Parser *parser);
 }
 
 %code provides {
@@ -54,6 +56,7 @@
 /********************************** Helpers **********************************/
 %code {
     #include <string.h>
+    #include "common.h"
 
     #define nodes parser->nodes
     #define scratch parser->scratch
@@ -65,7 +68,7 @@
     // and frees the slice from scratch.
     // returns the start of the appended slice
     // TODO: return and handle NO_NODE if `scratch[scratch_begin..] == []`
-    NodeIdx Parser_finish_list(Parser *parser, uint32_t scratch_begin) {
+    static NodeIdx Parser_finish_list(Parser *parser, uint32_t scratch_begin) {
         uint32_t list_len = scratch.len - scratch_begin;
         if (list_len == 0) {
             return nodes.len;
@@ -81,6 +84,16 @@
         scratch.len -= list_len;
 
         return nodes.len - list_len;
+    }
+
+    Ast Parser_mk_ast(Parser *parser) {
+        assert(nodes.len > 0);
+        AstNode *ast_nodes = realloc(nodes.elems, nodes.len*sizeof(AstNode));
+        assert(ast_nodes != NULL);
+        Ast result = { ast_nodes, nodes.len };
+        AstNodeVec_free(&scratch);
+        nodes = (AstNodeVec){0};
+        return result;
     }
 }
 

@@ -96,30 +96,25 @@ void ast_visit(Visitor self, NodeIdx idx) {
         break;
 
     case AstNodeKind_LIST:
-        // FIXME
-        printf("Error");
-        return;
+        fprintf(stderr, "Visitor shouldn't be called directly with a list node");
+        exit(EXIT_FAILURE);
 
     case AstNodeKind_VAR_DECL_INIT:
         self->visit_var_decl(self, Ast_full_var_decl(self->ast, idx));
         break;
 
     case AstNodeKind_VAR_DECL:
-        // FIXME ERROR
-        printf("Error");
-        return ;
+        fprintf(stderr, "Visitor shouldn't be called directly with a var decl");
+        exit(EXIT_FAILURE);
 
     case AstNodeKind_METH_DECL_IMPL:
+    case AstNodeKind_METH_DECL:
         self->visit_meth_decl(self, Ast_full_meth_decl(self->ast, idx));
         break;
 
-    case AstNodeKind_METH_DECL:
-        printf("ERror");
-        return;
-
     case AstNodeKind_METH_PROTO:
-        printf("Error");
-        return;
+        fprintf(stderr, "Visitor shouldn't be called directly with a meth proto");
+        exit(EXIT_FAILURE);
 
     case AstNodeKind_PARAM:
         self->visit_param(self, node->data.lhs, node->data.rhs);
