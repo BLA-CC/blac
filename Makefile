@@ -17,7 +17,7 @@ SOURCE := $(filter-out $(PARSER), $(SOURCE))
 SOURCE := $(filter-out $(LEXER), $(SOURCE))
 OBJECT = $(SOURCE:.c=.o)
 
-TARGET = blac
+TARGET = c-tds
 
 all: $(TARGET)
 
