@@ -119,6 +119,4 @@ void scanner_stage(yyscan_t scanner, StrPool strs, FILE *file) {
                 break;
         }
     }
-
-    fclose(file);
 }

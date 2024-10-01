@@ -15,7 +15,7 @@
 WS      [ \t]
 NL      \r\n|\n\r|\n 
 NUMBER  [0-9]+
-IDENT   [a-zA-Z][a-zA-Z0-9]*
+IDENT   [a-zA-Z][a-zA-Z0-9_]*
 
 %x ML_COMMENT
 

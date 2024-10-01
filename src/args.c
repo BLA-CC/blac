@@ -9,12 +9,12 @@
 
 #define SET_DEFAULT_OPTION(opt, val)                                           \
     if ((opt) == NULL) {                                                       \
-        opt = u_strdup(val);                                                   \
+        opt = val;                                                             \
     }
 
-static const char *OUTPUT_DEFAULT = "a.out";
-static const char *TARGET_DEFAULT = "asm";
-static const char *OPTIMIZE_DEFAULT = "none";
+static char *OUTPUT_DEFAULT = "a.out";
+static char *TARGET_DEFAULT = "asm";
+static char *OPTIMIZE_DEFAULT = "none";
 
 static const char *const usages[] = {
     "c-tds [options] input",
@@ -58,18 +58,9 @@ Args arg_parse(int argc, char *argv[]) {
     SET_DEFAULT_OPTION(self.target, TARGET_DEFAULT);
     SET_DEFAULT_OPTION(self.opt, OPTIMIZE_DEFAULT);
 
-    printf("%s\n", self.output);
-    printf("%s\n", self.target);
-    printf("%s\n", self.opt);
-    printf("%s\n", self.debug ? "true" : "false");
-    printf("%s\n", self.input);
-
     return self;
 }
 
 void arg_release(Args *self) {
     free(self->input);
-    free(self->output);
-    free(self->target);
-    free(self->opt);
 }
