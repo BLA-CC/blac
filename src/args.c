@@ -49,9 +49,19 @@ static _Noreturn void _die(Argparse *argparse, const char *fmt, ...) {
 }
 
 static const char *
-_get_input(Argparse *argparse, int argc, const char *argv[]) {
+_parse_input(Argparse *argparse, int argc, const char *argv[]) {
     if (argc < 1) {
         _die(argparse, "no input file");
+    }
+
+    const char *format = strrchr(argv[0], '.');
+
+    if (format == NULL) {
+        format = "<null>";
+    }
+
+    if (strcmp(format, ".ctds") != 0) {
+        _die(argparse, "invalid file format %s", format);
     }
 
     return argv[0];
@@ -92,7 +102,7 @@ Args arg_parse(int argc, char *argv[]) {
     argparse_init(&argparse, options, usages, 0);
     argc = argparse_parse(&argparse, argc, (const char **)argv);
 
-    self.input = _get_input(&argparse, argc, (const char **)argv);
+    self.input = _parse_input(&argparse, argc, (const char **)argv);
 
     SET_DEFAULT_OPTION(target, TARGET_DEFAULT);
     self.target = _parse_target(&argparse, target);
