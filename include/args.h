@@ -7,11 +7,18 @@ extern "C" {
 
 #include <stdbool.h>
 
+typedef enum {
+    Target_SCAN,
+    Target_PARSE,
+    Target_IR,
+    Target_ASM,
+} Target;
+
 typedef struct {
-    char *input;
-    char *output;
-    char *target;
-    char *opt;
+    const char *input;
+    const char *output;
+    const char *opt;
+    Target target;
     bool debug;
 } Args;
 
