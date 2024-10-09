@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -10,63 +11,85 @@
 int main(int argc, char *argv[]) {
     Args args = arg_parse(argc, argv);
 
-    FILE *input_file, *output_file;
-    if ((input_file = fopen(args.input, "r")) == NULL) {
-        fprintf(stderr, "error: nonexistent input file (%s)\n", args.input);
-        exit(EXIT_FAILURE);
-    }
-
     StrPool strs = { 0 };
     Parser parser = { 0 };
 
     char out_filename[256];
 
-    if (strcmp(args.target, "scan") == 0) {
-        yyscan_t scanner;
-        if (yylex_init_extra(&strs, &scanner)) {
-            return 1;
-        }
-        yyset_in(input_file, scanner);
+    int exit_status = EXIT_SUCCESS;
 
+    yyscan_t scanner;
+    if (yylex_init_extra(&strs, &scanner)) {
+        exit_status = EXIT_FAILURE;
+        goto scan_init_failure;
+    }
+
+    FILE *input_file;
+    if ((input_file = fopen(args.input, "r")) == NULL) {
+        fprintf(stderr, "error: nonexistent input file (%s)\n", args.input);
+        exit_status = EXIT_FAILURE;
+        goto input_file_failure;
+    }
+
+    yyset_in(input_file, scanner);
+
+    if (args.target == Target_SCAN) {
         sprintf(out_filename, "%s.lex", args.input);
-        if (( output_file = fopen(out_filename, "w")) == NULL) {
+
+        FILE *output_file;
+        if ((output_file = fopen(out_filename, "w")) == NULL) {
             fprintf(stderr, "error: could not create output file\n");
             exit(EXIT_FAILURE);
         }
 
         scanner_stage(scanner, strs, output_file);
 
-        yylex_destroy(scanner);
-    } else if (strcmp(args.target, "parse") == 0) {
-        yyscan_t scanner;
-        if (yylex_init_extra(&strs, &scanner)) {
-            return 1;
-        }
-        yyset_in(input_file, scanner);
-        if (yyparse(&parser, scanner)) {
-            return 1;
-        }
-        yylex_destroy(scanner);
+        fclose(output_file);
 
-        Ast ast = Parser_mk_ast(&parser);
+        goto stage_scan_cleanup;
+    }
 
+    if (yyparse(&parser, scanner)) {
+        exit_status = EXIT_FAILURE;
+        goto parse_init_failure;
+    }
+
+    Ast ast = Parser_mk_ast(&parser);
+
+    if (args.target == Target_PARSE) {
         sprintf(out_filename, "%s.sint", args.input);
+
+        FILE *output_file;
         if ((output_file = fopen(out_filename, "w")) == NULL) {
             fprintf(stderr, "error: could not create output file\n");
             exit(EXIT_FAILURE);
         }
         ast_display(ast, 0, strs, output_file);
 
-        Ast_release(&ast);
-    } else {
+        fclose(output_file);
+
+        goto stage_parse_cleanup;
+    }
+
+    if (args.target > Target_PARSE) {
         fprintf(stderr, "error: unimplemented stage");
         exit(EXIT_FAILURE);
     }
 
+stage_parse_cleanup:
     StrPool_release(&strs);
+    arg_release(&args);
+    Ast_release(&ast);
+
+parse_init_failure:
+stage_scan_cleanup:
     fclose(input_file);
-    fclose(output_file);
+
+input_file_failure:
+    yylex_destroy(scanner);
+
+scan_init_failure:
     arg_release(&args);
 
-    return 0;
+    return exit_status;
 }
