@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 Vec_Impl(SymInfo);
+Vec_Impl(Type);
 
 void symtable_push_scope(SymTable *self) {
     self->cur_scope++;
@@ -22,7 +23,7 @@ void symtable_pop_scope(SymTable *self) {
 }
 
 
-bool symtable_put_symbol(SymTable *self, const StrIdx ident, const Type type) {
+bool symtable_put_symbol(SymTable *self, const StrIdx ident, const TypeInfo type_info) {
 
     for (int32_t i = self->symbols.len - 1; i >= 0; i--) {
         if (self->cur_scope != self->symbols.elems[i].scope) {
@@ -35,7 +36,7 @@ bool symtable_put_symbol(SymTable *self, const StrIdx ident, const Type type) {
     SymInfo new = {
         .sym = ident,
         .scope = self->cur_scope,
-        .type = type
+        .type_info = type_info
     };
 
     SymInfoVec_push(&self->symbols, new);
@@ -60,6 +61,11 @@ void symtable_display(SymTable *self, StrPool *strs) {
     printf("\tCurrent scope %d\n\tSymbols:\n", self->cur_scope);
     for(uint32_t i = 0; i < self->symbols.len; i++) {
         SymInfo *s = &self->symbols.elems[i];
-        printf("\t\t%s: %d\n", StrPool_get(strs, s->sym), s->scope);
+        printf("\t\t%s: %d", StrPool_get(strs, s->sym), s->scope);
+        if (s->type_info.tg == TypeG_FUN) {
+            printf("(fun)\n"); 
+        } else {
+            printf("(var)\n");
+        }
     }
 }
