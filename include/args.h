@@ -24,8 +24,6 @@ typedef struct {
 
 Args arg_parse(int argc, char *argv[]);
 
-void arg_release(Args *self);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

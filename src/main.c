@@ -78,7 +78,6 @@ int main(int argc, char *argv[]) {
 
 stage_parse_cleanup:
     StrPool_release(&strs);
-    arg_release(&args);
     Ast_release(&ast);
 
 parse_init_failure:
@@ -89,7 +88,6 @@ input_file_failure:
     yylex_destroy(scanner);
 
 scan_init_failure:
-    arg_release(&args);
 
     return exit_status;
 }
