@@ -3,7 +3,7 @@
 
 #include "ast_visitor.h"
 
-void ast_visit(Visitor *self, NodeIdx idx) {
+void ast_visit(AstVisitor *self, NodeIdx idx) {
     AstNode *node = &self->ast.nodes[idx];
 
     if (node == NULL) {

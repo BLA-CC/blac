@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        scanner_stage(scanner, strs, output_file);
+        display_toks(scanner, strs, output_file);
 
         fclose(output_file);
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "error: could not create output file\n");
             exit(EXIT_FAILURE);
         }
-        ast_display(ast, 0, strs, output_file);
+        display_ast(ast, 0, strs, output_file);
 
         fclose(output_file);
 

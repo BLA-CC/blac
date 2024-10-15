@@ -67,24 +67,24 @@ static const char *_str_bool(bool val) {
     }
 }
 
-void display_list(Visitor *v, NodeIdx begin, NodeIdx end) {
+void display_list(AstVisitor *v, NodeIdx begin, NodeIdx end) {
     for (NodeIdx i = begin; i < end; i++) {
         ast_visit(v, i);
     }
 }
 
-void display_prog(Visitor *v, AstNodeFull_List prog_n) {
+void display_prog(AstVisitor *v, AstNodeFull_List prog_n) {
     FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "program {\n");
     display_list(v, prog_n.begin, prog_n.end);
     fprintf(stream, "}\n");
 }
 
-void display_block(Visitor *v, AstNodeFull_List block_n) {
+void display_block(AstVisitor *v, AstNodeFull_List block_n) {
     display_list(v, block_n.begin, block_n.end);
 }
 
-void display_var_decl(Visitor *v, AstNodeFull_VarDecl var_decl_n) {
+void display_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
     FILE *stream = (FILE *)v->ctx;
     StrPool strs = v->strs;
 
@@ -97,7 +97,7 @@ void display_var_decl(Visitor *v, AstNodeFull_VarDecl var_decl_n) {
     fprintf(stream, ";\n");
 }
 
-void display_meth_decl(Visitor *v, AstNodeFull_MethDecl meth_decl_n) {
+void display_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     FILE *stream = (FILE *)v->ctx;
     StrPool strs = v->strs;
 
@@ -122,7 +122,7 @@ void display_meth_decl(Visitor *v, AstNodeFull_MethDecl meth_decl_n) {
 
 }
 
-void display_param(Visitor *v, Type type, StrIdx ident) {
+void display_param(AstVisitor *v, Type type, StrIdx ident) {
     FILE *stream = (FILE *)v->ctx;
     StrPool strs = v->strs;
 
@@ -130,7 +130,7 @@ void display_param(Visitor *v, Type type, StrIdx ident) {
 }
 
 
-void display_if(Visitor *v, AstNodeFull_If if_n) {
+void display_if(AstVisitor *v, AstNodeFull_If if_n) {
     FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "if (");
     ast_visit(v, if_n.cond);
@@ -147,7 +147,7 @@ void display_if(Visitor *v, AstNodeFull_If if_n) {
     fprintf(stream, "\n");
 }
 
-void display_while(Visitor *v, AstNodeFull_While while_n) {
+void display_while(AstVisitor *v, AstNodeFull_While while_n) {
     FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "while (");
     ast_visit(v, while_n.cond);
@@ -156,7 +156,7 @@ void display_while(Visitor *v, AstNodeFull_While while_n) {
     fprintf(stream, "}\n");
 }
 
-void display_ret(Visitor *v, NodeIdx expr_idx) {
+void display_ret(AstVisitor *v, NodeIdx expr_idx) {
     FILE *stream = (FILE *)v->ctx;
 
     fprintf(stream, "return");
@@ -168,7 +168,7 @@ void display_ret(Visitor *v, NodeIdx expr_idx) {
 }
 
 
-void display_meth_call(Visitor *v, AstNodeFull_MethCall meth_call_n) {
+void display_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     FILE *stream = (FILE *)v->ctx;
     StrPool strs = v->strs;
     fprintf(stream, "%s(",StrPool_get(&strs, meth_call_n.meth_ident));
@@ -176,21 +176,21 @@ void display_meth_call(Visitor *v, AstNodeFull_MethCall meth_call_n) {
     fprintf(stream, ")");
 }
 
-void display_var(Visitor *v, StrIdx ident) {
+void display_var(AstVisitor *v, StrIdx ident) {
     StrPool strs = v->strs;
 
     fprintf((FILE *)v->ctx, "%s", StrPool_get(&strs, ident));
 }
 
-void display_int_lit(Visitor *v, uint32_t val) {
+void display_int_lit(AstVisitor *v, uint32_t val) {
     fprintf((FILE *)v->ctx, "%d", val);
 }
 
-void display_bool_lit(Visitor *v, bool val) {
+void display_bool_lit(AstVisitor *v, bool val) {
     fprintf((FILE *)v->ctx, "%s", _str_bool(val));
 }
 
-void display_asgn(Visitor *v, AstNodeFull_Asgn asgn_n) {
+void display_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     FILE *stream = (FILE *)v->ctx;
     StrPool strs = v->strs;
 
@@ -200,13 +200,13 @@ void display_asgn(Visitor *v, AstNodeFull_Asgn asgn_n) {
 }
 
 
-void display_unop(Visitor *v, AstNodeFull_UnOp unop_n) {
+void display_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
     FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "%s ", _str_un_op(unop_n.op));
     ast_visit(v, unop_n.arg);
 }
 
-void display_binop(Visitor *v, AstNodeFull_BinOp binop_n) {
+void display_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     FILE *stream = (FILE *)v->ctx;
 
     fprintf(stream, "(");
@@ -218,8 +218,8 @@ void display_binop(Visitor *v, AstNodeFull_BinOp binop_n) {
 
 
 
-void ast_display(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream){
-    Visitor visitor = (Visitor){
+void display_ast(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream){
+    AstVisitor visitor = (AstVisitor){
         ast,
         strs,
         (void *)stream,

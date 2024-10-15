@@ -1,6 +1,6 @@
 #include "display.h"
 
-void scanner_stage(yyscan_t scanner, StrPool strs, FILE *file) {
+void display_toks(yyscan_t scanner, StrPool strs, FILE *file) {
     YYSTYPE yylval;
     YYLTYPE yylloc = {.col = 1, .line = 1};
 

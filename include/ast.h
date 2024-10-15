@@ -193,6 +193,7 @@ void Ast_release(Ast *ast);
 
 typedef uint32_t NodeIdx;
 #define NO_NODE 0
+#define AST_ROOT 0
 
 /*
  * The `data` of a node is to be interpreted according to its `kind`.
