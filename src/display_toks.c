@@ -1,7 +1,4 @@
-#include "parser.h"
-#include "str_pool.h"
-#include <stdio.h>
-
+#include "display.h"
 
 void scanner_stage(yyscan_t scanner, StrPool strs, FILE *file) {
     YYSTYPE yylval;

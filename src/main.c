@@ -5,8 +5,7 @@
 #include "args.h"
 #include "str_pool.h"
 #include "parser.h"
-#include "display_ast.h"
-#include "stages.h"
+#include "display.h"
 
 int main(int argc, char *argv[]) {
     Args args = arg_parse(argc, argv);

@@ -1,7 +1,5 @@
-#include <stdbool.h>
-#include <stdio.h>
-
 #include "ast_visitor.h"
+#include "display.h"
 
 static const char *_str_un_op(UnOp op) {
     switch (op) {

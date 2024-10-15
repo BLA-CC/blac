@@ -1,8 +1,14 @@
-#ifndef DISPLAY_AST_H
-#define DISPLAY_AST_H
+#ifndef _DISPLAY_H
+#define _DISPLAY_H
 
-#include "ast.h"
+#include <stdio.h>
+
 #include "str_pool.h"
+#include "parser.h"
+#include "ast.h"
+
+
+void scanner_stage(yyscan_t scanner, StrPool strs, FILE *file);
 
 /**
  * @brief Displays the subtree of the AST starting from the given root node.
@@ -12,4 +18,5 @@
  */
 void ast_display(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream);
 
-#endif // DISPLAY_AST_H
+#endif // _DISPLAY_H
+
