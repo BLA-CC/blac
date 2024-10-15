@@ -1,89 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../include/ast.h"
-#include "../include/str_pool.h"
-#include "../include/ast_visitor.h"
 
-#include <inttypes.h>
+#include "ast_visitor.h"
 
-// VISITOR
-struct Visitor_S {
-    Ast ast;
-    StrPool strs;
-    void *ctx;
-    Location loc;
-
-    /* Expression visitors */
-    void (*visit_prog)(Visitor v, AstNodeFull_List prog_n);
-    void (*visit_block)(Visitor v, AstNodeFull_List block_n);
-    void (*visit_var_decl)(Visitor v, AstNodeFull_VarDecl var_decl_n);
-    void (*visit_meth_decl)(Visitor v, AstNodeFull_MethDecl meth_decl_n);
-    void (*visit_param)(Visitor v, Type type, StrIdx ident);
-    void (*visit_asgn)(Visitor v, AstNodeFull_Asgn asgn_n);
-    void (*visit_if)(Visitor v, AstNodeFull_If if_n);
-    void (*visit_while)(Visitor v, AstNodeFull_While while_n);
-    void (*visit_ret)(Visitor v, NodeIdx expr_idx);
-    void (*visit_meth_call)(Visitor v, AstNodeFull_MethCall meth_call_n);
-    void (*visit_var)(Visitor v, StrIdx ident);
-    void (*visit_int_lit)(Visitor v, uint32_t val);
-    void (*visit_bool_lit)(Visitor v, bool val);
-    void (*visit_unop)(Visitor v, AstNodeFull_UnOp unop_n);
-    void (*visit_binop)(Visitor v, AstNodeFull_BinOp binop_n);
-};
-
-Visitor init_visitor(
-    Ast ast,
-    StrPool strs,
-    void *ctx,
-
-    void (*visit_prog)(Visitor v, AstNodeFull_List prog_n),
-    void (*visit_block)(Visitor v, AstNodeFull_List block_n),
-    void (*visit_var_decl)(Visitor v, AstNodeFull_VarDecl var_decl_n),
-    void (*visit_meth_decl)(Visitor v, AstNodeFull_MethDecl meth_decl_n),
-    void (*visit_param)(Visitor v, Type type, StrIdx ident),
-    void (*visit_asgn)(Visitor v, AstNodeFull_Asgn asgn_n),
-    void (*visit_if)(Visitor v, AstNodeFull_If if_n),
-    void (*visit_while)(Visitor v, AstNodeFull_While while_n),
-    void (*visit_ret)(Visitor v, NodeIdx expr_idx),
-    void (*visit_meth_call)(Visitor v, AstNodeFull_MethCall meth_call_n),
-    void (*visit_var)(Visitor v, StrIdx ident),
-    void (*visit_int_lit)(Visitor v, uint32_t val),
-    void (*visit_bool_lit)(Visitor v, bool val),
-    void (*visit_unop)(Visitor v, AstNodeFull_UnOp unop_n),
-    void (*visit_binop)(Visitor v, AstNodeFull_BinOp binop_n)) {
-
-    Visitor self = malloc(sizeof(*self));
-    self->ast = ast;
-    self->strs = strs;
-    self->ctx = ctx;
-    self->loc = (Location){ .line = 0, .col = 0 };
-
-    self->visit_prog = visit_prog;
-    self->visit_block = visit_block;
-    self->visit_var_decl = visit_var_decl;
-    self->visit_meth_decl = visit_meth_decl;
-    self->visit_param = visit_param;
-    self->visit_asgn = visit_asgn;
-    self->visit_if = visit_if;
-    self->visit_while = visit_while;
-    self->visit_ret = visit_ret;
-    self->visit_meth_call = visit_meth_call;
-    self->visit_var = visit_var;
-    self->visit_int_lit = visit_int_lit;
-    self->visit_bool_lit = visit_bool_lit;
-    self->visit_unop = visit_unop;
-    self->visit_binop = visit_binop;
-
-    return self;
-}
-
-void ast_visit(Visitor self, NodeIdx idx) {
+void ast_visit(Visitor *self, NodeIdx idx) {
     AstNode *node = &self->ast.nodes[idx];
 
     if (node == NULL) {
         return;
     }
 
+    Location prev_loc = self->loc;
     self->loc = node->loc;
 
     switch (node->kind) {
@@ -176,25 +103,6 @@ void ast_visit(Visitor self, NodeIdx idx) {
 
     }
 
+    self->loc = prev_loc;
 }
 
-void visitor_release(Visitor self) {
-    free(self);
-}
-
-// getters
-void *visitor_get_ctx(Visitor self) {
-    return self->ctx;
-}
-
-Ast visitor_get_ast(Visitor self) {
-    return self->ast;
-}
-
-StrPool visitor_get_strs(Visitor self) {
-    return self->strs;
-}
-
-Location visitor_get_loc(Visitor self) {
-    return self->loc;
-}

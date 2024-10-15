@@ -24,15 +24,6 @@ static const char *const usages[] = {
     NULL,
 };
 
-/*
-static char *u_strdup(const char *input) {
-    size_t n = strlen(input);
-    char *output = calloc(n + 1, sizeof(*output));
-    memcpy(output, input, n);
-    return output;
-}
-*/
-
 static _Noreturn void _die(Argparse *argparse, const char *fmt, ...) {
     argparse_usage(argparse);
 

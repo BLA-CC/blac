@@ -1,9 +1,7 @@
-#include "ast.h"
-#include "str_pool.h"
-#include "ast_visitor.h"
-#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+
+#include "ast_visitor.h"
 
 static const char *_str_un_op(UnOp op) {
     switch (op) {
@@ -71,26 +69,26 @@ static const char *_str_bool(bool val) {
     }
 }
 
-void display_list(Visitor v, NodeIdx begin, NodeIdx end) {
+void display_list(Visitor *v, NodeIdx begin, NodeIdx end) {
     for (NodeIdx i = begin; i < end; i++) {
         ast_visit(v, i);
     }
 }
 
-void display_prog(Visitor v, AstNodeFull_List prog_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_prog(Visitor *v, AstNodeFull_List prog_n) {
+    FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "program {\n");
     display_list(v, prog_n.begin, prog_n.end);
     fprintf(stream, "}\n");
 }
 
-void display_block(Visitor v, AstNodeFull_List block_n) {
+void display_block(Visitor *v, AstNodeFull_List block_n) {
     display_list(v, block_n.begin, block_n.end);
 }
 
-void display_var_decl(Visitor v, AstNodeFull_VarDecl var_decl_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
-    StrPool strs = visitor_get_strs(v);
+void display_var_decl(Visitor *v, AstNodeFull_VarDecl var_decl_n) {
+    FILE *stream = (FILE *)v->ctx;
+    StrPool strs = v->strs;
 
     fprintf(
         stream,
@@ -101,9 +99,9 @@ void display_var_decl(Visitor v, AstNodeFull_VarDecl var_decl_n) {
     fprintf(stream, ";\n");
 }
 
-void display_meth_decl(Visitor v, AstNodeFull_MethDecl meth_decl_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
-    StrPool strs = visitor_get_strs(v);
+void display_meth_decl(Visitor *v, AstNodeFull_MethDecl meth_decl_n) {
+    FILE *stream = (FILE *)v->ctx;
+    StrPool strs = v->strs;
 
     fprintf(
         stream,
@@ -126,16 +124,16 @@ void display_meth_decl(Visitor v, AstNodeFull_MethDecl meth_decl_n) {
 
 }
 
-void display_param(Visitor v, Type type, StrIdx ident) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
-    StrPool strs = visitor_get_strs(v);
+void display_param(Visitor *v, Type type, StrIdx ident) {
+    FILE *stream = (FILE *)v->ctx;
+    StrPool strs = v->strs;
 
     fprintf(stream, "%s %s", _str_type(type), StrPool_get(&strs, ident));
 }
 
 
-void display_if(Visitor v, AstNodeFull_If if_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_if(Visitor *v, AstNodeFull_If if_n) {
+    FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "if (");
     ast_visit(v, if_n.cond);
     fprintf(stream, ") then {\n");
@@ -151,8 +149,8 @@ void display_if(Visitor v, AstNodeFull_If if_n) {
     fprintf(stream, "\n");
 }
 
-void display_while(Visitor v, AstNodeFull_While while_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_while(Visitor *v, AstNodeFull_While while_n) {
+    FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "while (");
     ast_visit(v, while_n.cond);
     fprintf(stream, ") {\n");
@@ -160,8 +158,8 @@ void display_while(Visitor v, AstNodeFull_While while_n) {
     fprintf(stream, "}\n");
 }
 
-void display_ret(Visitor v, NodeIdx expr_idx) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_ret(Visitor *v, NodeIdx expr_idx) {
+    FILE *stream = (FILE *)v->ctx;
 
     fprintf(stream, "return");
     if (expr_idx != NO_NODE) {
@@ -172,31 +170,31 @@ void display_ret(Visitor v, NodeIdx expr_idx) {
 }
 
 
-void display_meth_call(Visitor v, AstNodeFull_MethCall meth_call_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
-    StrPool strs = visitor_get_strs(v);
+void display_meth_call(Visitor *v, AstNodeFull_MethCall meth_call_n) {
+    FILE *stream = (FILE *)v->ctx;
+    StrPool strs = v->strs;
     fprintf(stream, "%s(",StrPool_get(&strs, meth_call_n.meth_ident));
     display_list(v, meth_call_n.args_begin, meth_call_n.args_end);
     fprintf(stream, ")");
 }
 
-void display_var(Visitor v, StrIdx ident) {
-    StrPool strs = visitor_get_strs(v);
+void display_var(Visitor *v, StrIdx ident) {
+    StrPool strs = v->strs;
 
-    fprintf((FILE *)visitor_get_ctx(v), "%s", StrPool_get(&strs, ident));
+    fprintf((FILE *)v->ctx, "%s", StrPool_get(&strs, ident));
 }
 
-void display_int_lit(Visitor v, uint32_t val) {
-    fprintf((FILE *)visitor_get_ctx(v), "%d", val);
+void display_int_lit(Visitor *v, uint32_t val) {
+    fprintf((FILE *)v->ctx, "%d", val);
 }
 
-void display_bool_lit(Visitor v, bool val) {
-    fprintf((FILE *)visitor_get_ctx(v), "%s", _str_bool(val));
+void display_bool_lit(Visitor *v, bool val) {
+    fprintf((FILE *)v->ctx, "%s", _str_bool(val));
 }
 
-void display_asgn(Visitor v, AstNodeFull_Asgn asgn_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
-    StrPool strs = visitor_get_strs(v);
+void display_asgn(Visitor *v, AstNodeFull_Asgn asgn_n) {
+    FILE *stream = (FILE *)v->ctx;
+    StrPool strs = v->strs;
 
     fprintf(stream, "%s = ", StrPool_get(&strs, asgn_n.target));
     ast_visit(v, asgn_n.expr);
@@ -204,14 +202,14 @@ void display_asgn(Visitor v, AstNodeFull_Asgn asgn_n) {
 }
 
 
-void display_unop(Visitor v, AstNodeFull_UnOp unop_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_unop(Visitor *v, AstNodeFull_UnOp unop_n) {
+    FILE *stream = (FILE *)v->ctx;
     fprintf(stream, "%s ", _str_un_op(unop_n.op));
     ast_visit(v, unop_n.arg);
 }
 
-void display_binop(Visitor v, AstNodeFull_BinOp binop_n) {
-    FILE *stream = (FILE *)visitor_get_ctx(v);
+void display_binop(Visitor *v, AstNodeFull_BinOp binop_n) {
+    FILE *stream = (FILE *)v->ctx;
 
     fprintf(stream, "(");
     ast_visit(v, binop_n.lhs);
@@ -223,10 +221,11 @@ void display_binop(Visitor v, AstNodeFull_BinOp binop_n) {
 
 
 void ast_display(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream){
-    Visitor visitor = init_visitor(
+    Visitor visitor = (Visitor){
         ast,
         strs,
         (void *)stream,
+        {0},
         display_prog,
         display_block,
         display_var_decl,
@@ -242,10 +241,9 @@ void ast_display(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream){
         display_bool_lit,
         display_unop,
         display_binop
-    );
+    };
 
-    ast_visit(visitor, idx);
+    ast_visit(&visitor, idx);
     fprintf(stream, "\n");
-
-    visitor_release(visitor);
 }
+
