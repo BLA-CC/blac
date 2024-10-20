@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "error: could not create output file\n");
             exit(EXIT_FAILURE);
         }
-        display_ast(ast, 0, strs, output_file);
+        display_ast(ast, strs, 0, output_file);
 
         fclose(output_file);
 

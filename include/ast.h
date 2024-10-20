@@ -232,8 +232,7 @@ typedef struct {
 typedef struct {
     Type ret_type;
     StrIdx ident;
-    NodeIdx params_begin;
-    NodeIdx params_end;
+    NodeIdx params;
     NodeIdx body;
 } AstNodeFull_MethDecl;
 
@@ -291,6 +290,8 @@ typedef struct {
 AstNodeFull_List Ast_full_prog(Ast ast);
 
 AstNodeFull_List Ast_full_block(Ast ast, NodeIdx idx);
+
+AstNodeFull_List Ast_full_list(Ast ast, NodeIdx idx);
 
 AstNodeFull_VarDecl Ast_full_var_decl(Ast ast, NodeIdx idx);
 

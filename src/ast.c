@@ -8,7 +8,7 @@ Vec_Impl(AstNode);
 
 AstNodeFull_List Ast_full_prog(Ast ast) {
     assert(ast.len != 0);
-    AstNode *root = &ast.nodes[0];
+    AstNode *root = &ast.nodes[AST_ROOT];
     assert(root->kind == AstNodeKind_PROG);
     return (AstNodeFull_List){ .begin = root->data.lhs, .end = root->data.rhs };
 }
@@ -17,6 +17,13 @@ AstNodeFull_List Ast_full_block(Ast ast, NodeIdx idx) {
     assert(idx < ast.len);
     AstNode *node = &ast.nodes[idx];
     assert(node->kind == AstNodeKind_BLOCK);
+    return (AstNodeFull_List){ .begin = node->data.lhs, .end = node->data.rhs };
+}
+
+AstNodeFull_List Ast_full_list(Ast ast, NodeIdx idx) {
+    assert(idx < ast.len);
+    AstNode *node = &ast.nodes[idx];
+    assert(node->kind == AstNodeKind_LIST);
     return (AstNodeFull_List){ .begin = node->data.lhs, .end = node->data.rhs };
 }
 
@@ -55,12 +62,9 @@ AstNodeFull_MethDecl Ast_full_meth_decl(Ast ast, NodeIdx idx) {
         AstNode *proto_node = &ast.nodes[node->data.rhs];
         assert(proto_node->kind == AstNodeKind_METH_PROTO);
         assert(proto_node->data.lhs < ast.len);
-        AstNode *params_node = &ast.nodes[proto_node->data.lhs];
-        assert(params_node->kind == AstNodeKind_LIST);
         result.ret_type = proto_node->data.rhs;
         result.ident = node->data.lhs;
-        result.params_begin = params_node->data.lhs;
-        result.params_end = params_node->data.rhs;
+        result.params= proto_node->data.lhs;
         result.body = NO_NODE;
     }
     return result;

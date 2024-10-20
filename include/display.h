@@ -21,7 +21,7 @@ void display_toks(yyscan_t scanner, StrPool strs, FILE *file);
  * @param[in] node_id The ID of a valid statement or expression in the AST.
  * @param[in] stream The output handle where the AST subtree will be printed.
  */
-void display_ast(const Ast ast, NodeIdx idx, StrPool strs, FILE *stream);
+void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream);
 
 #endif // _DISPLAY_H
 

@@ -1,7 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "ast_visitor.h"
+#include "common.h"
 
 void ast_visit(AstVisitor *self, NodeIdx idx) {
     AstNode *node = &self->ast.nodes[idx];
@@ -22,26 +20,15 @@ void ast_visit(AstVisitor *self, NodeIdx idx) {
         self->visit_block(self, Ast_full_block(self->ast, idx));
         break;
 
-    case AstNodeKind_LIST:
-        fprintf(stderr, "Visitor shouldn't be called directly with a list node");
-        exit(EXIT_FAILURE);
-
     case AstNodeKind_VAR_DECL_INIT:
         self->visit_var_decl(self, Ast_full_var_decl(self->ast, idx));
         break;
-
-    case AstNodeKind_VAR_DECL:
-        fprintf(stderr, "Visitor shouldn't be called directly with a var decl");
-        exit(EXIT_FAILURE);
 
     case AstNodeKind_METH_DECL_IMPL:
     case AstNodeKind_METH_DECL:
         self->visit_meth_decl(self, Ast_full_meth_decl(self->ast, idx));
         break;
 
-    case AstNodeKind_METH_PROTO:
-        fprintf(stderr, "Visitor shouldn't be called directly with a meth proto");
-        exit(EXIT_FAILURE);
 
     case AstNodeKind_PARAM:
         self->visit_param(self, node->data.lhs, node->data.rhs);
@@ -101,6 +88,10 @@ void ast_visit(AstVisitor *self, NodeIdx idx) {
         self->visit_binop(self, Ast_full_binop(self->ast, idx));
         break;
 
+    case AstNodeKind_LIST:
+    case AstNodeKind_VAR_DECL:
+    case AstNodeKind_METH_PROTO:
+        panic("Tried visiting an internal node\n");
     }
 
     self->loc = prev_loc;

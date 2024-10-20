@@ -1,8 +1,6 @@
 #ifndef _VEC_H
 #define _VEC_H
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "common.h"
 
 /**
@@ -29,8 +27,7 @@
             uint32_t new_cap = vec->cap == 0 ? 64 : 2 * vec->cap;              \
             vec->elems = realloc(vec->elems, new_cap * sizeof(T));             \
             if (vec->elems == NULL) {                                          \
-                fprintf(stderr, "UNRECOVERABLE: Out of memory\n");             \
-                exit(1);                                                       \
+                panic("UNRECOVERABLE: Out of memory\n");                       \
             }                                                                  \
             vec->cap = new_cap;                                                \
         }                                                                      \
@@ -52,8 +49,7 @@
         new_cap++;                                                             \
         vec->elems = realloc(vec->elems, new_cap * sizeof(T));                 \
         if (vec->elems == NULL && new_cap != 0) {                              \
-            fprintf(stderr, "UNRECOVERABLE: Out of memory\n");                 \
-            exit(1);                                                           \
+            panic("UNRECOVERABLE: Out of memory\n");                           \
         }                                                                      \
         vec->cap = new_cap;                                                    \
     }                                                                          \
