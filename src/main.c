@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "args.h"
+#include "tyck.h"
 #include "str_pool.h"
 #include "parser.h"
 #include "display.h"
@@ -55,6 +56,11 @@ int main(int argc, char *argv[]) {
 
     Ast ast = Parser_mk_ast(&parser);
 
+    if (!tyck(ast, strs)) {
+        exit_status = EXIT_FAILURE;
+        goto stage_sempass_error;
+    }
+
     if (args.target == Target_PARSE) {
         sprintf(out_filename, "%s.sint", args.input);
 
@@ -71,10 +77,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (args.target > Target_PARSE) {
-        fprintf(stderr, "error: unimplemented stage");
+        fprintf(stderr, "error: unimplemented stage\n");
         exit(EXIT_FAILURE);
     }
 
+stage_sempass_error:
 stage_parse_cleanup:
     StrPool_release(&strs);
     Ast_release(&ast);
