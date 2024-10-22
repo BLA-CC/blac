@@ -340,5 +340,5 @@ bool tyck(const Ast ast, StrPool strs) {
     };
 
     ast_visit(&visitor, AST_ROOT);
-    return tyck.had_error;
+    return !tyck.had_error;
 }
