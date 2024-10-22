@@ -67,7 +67,7 @@ static const char *_str_bin_op(BinOp op) {
     return "INVALID";
 }
 
-static const char *_str_type(Type type) {
+const char *str_type(Type type) {
     switch (type) {
     case Type_VOID:
         return "void";
@@ -123,7 +123,7 @@ void display_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
 
     PPRINT("(var_decl:\n");
     INDENT;
-    PPRINT("type: %s\n", _str_type(var_decl_n.type));
+    PPRINT("type: %s\n", str_type(var_decl_n.type));
     PPRINT("var: %s\n", StrPool_get(&strs, var_decl_n.ident));
     if (var_decl_n.init_expr != NO_NODE) {
         PPRINT("init_expr:");
@@ -141,7 +141,7 @@ void display_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     PPRINT("(meth_decl:\n");
     INDENT;
     PPRINT("meth_name: %s\n", StrPool_get(&strs, meth_decl_n.ident));
-    PPRINT("ret_type: %s\n", _str_type(meth_decl_n.ret_type));
+    PPRINT("ret_type: %s\n", str_type(meth_decl_n.ret_type));
     PPRINT("params:");
     AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
     SKIP_INDENT;
@@ -165,7 +165,7 @@ void display_param(AstVisitor *v, Type type, StrIdx ident) {
 
     PPRINT("(param:\n");
     INDENT;
-    PPRINT("type: %s\n", _str_type(type));
+    PPRINT("type: %s\n", str_type(type));
     PPRINT("ident: %s\n", StrPool_get(&strs, ident));
     DEDENT;
     PPRINT(")\n");

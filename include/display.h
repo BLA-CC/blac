@@ -23,5 +23,7 @@ void display_toks(yyscan_t scanner, StrPool strs, FILE *file);
  */
 void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream);
 
+const char *str_type(Type type);
+
 #endif // _DISPLAY_H
 

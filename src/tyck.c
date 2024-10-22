@@ -1,9 +1,12 @@
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "ast.h"
 #include "ast_visitor.h"
 #include "common.h"
+#include "str_pool.h"
 #include "sym_table.h"
+#include "display.h"
 
 typedef struct {
     SymTable sym_table;
@@ -11,6 +14,35 @@ typedef struct {
     Type ret_type;
     bool had_error;
 } Tyck;
+
+void tyck_report_mismatch(Location loc, Type expected, Type found) {
+
+    fprintf(
+        stderr,
+        "Error: Type mismatch (in line %d, col %d). Expected '%s' but found '%s'.\n",
+        loc.line, loc.col, str_type(expected), str_type(found)
+    );
+}
+
+void tyck_report_double_decl(Location loc, StrPool *strs, StrIdx ident) {
+    fprintf(
+        stderr,
+        "Error: Redeclaration of '%s' (in line %d, col %d).\n",
+        StrPool_get(strs, ident), loc.line, loc.col
+    );
+}
+
+void tyck_report_undefined(Location loc, StrPool *strs, StrIdx ident) {
+    fprintf(
+        stderr,
+        "Error: Undefined symbol '%s' (in line %d, col %d).\n",
+        StrPool_get(strs, ident), loc.line, loc.col
+    );
+}
+
+void tyck_report_misc(Location loc, char *msg) {
+    fprintf(stderr, "Error: %s (in line %d, col %d).\n", msg, loc.line, loc.col);
+}
 
 void tyck_prog(AstVisitor *v, AstNodeFull_List prog_n) {
     for (NodeIdx i = prog_n.begin; i < prog_n.end; i++) {
@@ -37,19 +69,20 @@ void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
 
     if (!symtable_put_symbol(
         &tyck->sym_table,
-        var_decl_n.init_expr,
+        var_decl_n.ident,
         (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE }
     )) {
         tyck->had_error = true;
-        // FIXME: report (double decl)
 
+        tyck_report_double_decl(v->loc, &v->strs, var_decl_n.ident);
         // if it is a double declaration, a type mismatch cannot be reported
         return;
     }
 
     if (tyck->type != var_decl_n.type) {
         tyck->had_error = true;
-        // FIXME: report (mismatch)
+
+        tyck_report_mismatch(v->loc, var_decl_n.type, tyck->type);
     }
 }
 
@@ -63,7 +96,7 @@ void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
         (TypeInfo){ .base = meth_decl_n.ret_type, .params = meth_decl_n.params }
     )) {
         tyck->had_error = true;
-        // FIXME: report (double decl (method))
+        tyck_report_double_decl(v->loc, &v->strs, meth_decl_n.ident);
     }
 
     // Nothing to check if there is no body
@@ -94,7 +127,7 @@ void tyck_param(AstVisitor *v, Type type, StrIdx ident) {
         (TypeInfo){ .base = type, .params = NO_NODE }
     )) {
         tyck->had_error = true;
-        // FIXME: report (double decl param)
+        tyck_report_double_decl(v->loc, &v->strs, ident);
     }
 }
 
@@ -104,7 +137,7 @@ void tyck_if(AstVisitor *v, AstNodeFull_If if_n) {
     ast_visit(v, if_n.cond);
     if (tyck->type != Type_BOOL) {
         tyck->had_error = true;
-        // FIXME: report (mismatch)
+        tyck_report_mismatch(v->loc, Type_BOOL, tyck->type);
     }
 
     ast_visit(v, if_n.then_b);
@@ -119,7 +152,7 @@ void tyck_while(AstVisitor *v, AstNodeFull_While while_n) {
 
     ast_visit(v, while_n.cond);
     if (tyck->type != Type_BOOL) {
-        // FIXME: report (mismatch)
+        tyck_report_mismatch(v->loc, Type_BOOL, tyck->type);
         tyck->had_error = true;
     }
 
@@ -134,11 +167,11 @@ void tyck_ret(AstVisitor *v, NodeIdx expr_n) {
 
         if (tyck->type != tyck->ret_type) {
             tyck->had_error = true;
-            // FIXME: report (mismatch (return value))
+            tyck_report_mismatch(v->loc, tyck->ret_type, tyck->type);
         }
     } else if (tyck->ret_type != Type_VOID) {
         tyck->had_error = true;
-        // FIXME: report (mismatch (return value))
+        tyck_report_mismatch(v->loc, tyck->ret_type, Type_VOID);
     }
 }
 
@@ -149,14 +182,14 @@ void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
 
     if (sym_info == NULL) {
         tyck->had_error = true;
-        // FIXME: report (undefined method)
+        tyck_report_undefined(v->loc, &v->strs, meth_call_n.meth_ident);
         tyck->type = Type_NONE;
         return;
     }
 
     if (sym_info->type_info.params == NO_NODE) {
         tyck->had_error = true;
-        // FIXME: report (cannot call a basic type)
+        tyck_report_misc(v->loc, "Cannot call a basic type");
         tyck->type = Type_NONE;
         return;
     }
@@ -168,7 +201,7 @@ void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
 
     if (args_len != params_len) {
         tyck->had_error = true;
-        // FIXME: report (argument count error)
+        tyck_report_misc(v->loc, "Incorrect argument count");
         tyck->type = Type_NONE;
         return;
     }
@@ -181,11 +214,11 @@ void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
         if (tyck->type == Type_NONE) {
             return;
         }
-
-        if (tyck->type != v->ast.nodes[params.begin + i].data.lhs) {
+        Type expected = v->ast.nodes[params.begin + i].data.lhs;
+        if (tyck->type != expected) {
             tyck->had_error = true;
             ret_type = Type_NONE;
-            // FIXME: report (mismatch (argument))
+            tyck_report_mismatch(v->loc, expected, tyck->type);
         }
     }
 
@@ -199,14 +232,14 @@ void tyck_var(AstVisitor *v, StrIdx ident) {
 
     if (sym_info == NULL) {
         tyck->had_error = true;
-        // FIXME: report (undefined variable)
+        tyck_report_undefined(v->loc, &v->strs, ident);
         tyck->type = Type_NONE;
         return;
     }
 
     if (sym_info->type_info.params != NO_NODE) {
         tyck->had_error = true;
-        // FIXME: report (methods cannot be used as values)
+        tyck_report_misc(v->loc, "Methods cannot be used as values");
         tyck->type = Type_NONE;
         return;
     }
@@ -235,13 +268,13 @@ void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
 
     if (sym_info == NULL) {
         tyck->had_error = true;
-        // FIXME: report (undefined)
+        tyck_report_undefined(v->loc, &v->strs, asgn_n.target);
         return;
     }
 
     if (sym_info->type_info.params != NO_NODE) {
         tyck->had_error = true;
-        // FIXME: report (cannot assign to method)
+        tyck_report_misc(v->loc, "Cannot assign to method");
         return;
     }
 
@@ -249,7 +282,7 @@ void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
 
     if (tyck->type != sym_info->type_info.base) {
         tyck->had_error = true;
-        // FIXME: report (mismatch)
+        tyck_report_mismatch(v->loc, sym_info->type_info.base, tyck->type);
     }
 }
 
@@ -274,7 +307,7 @@ void tyck_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
 
     if (tyck->type != op_type) {
         tyck->had_error = true;
-        // FIXME: report (mismatch (operator))
+        tyck_report_mismatch(v->loc, op_type, tyck->type);
     }
     tyck->type = op_type;
 }
@@ -313,7 +346,7 @@ void tyck_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
 
     if (tyck->type != arg_type) {
         tyck->had_error = true;
-        // FIXME: report (mismatch (operator))
+        tyck_report_mismatch(v->loc, arg_type, tyck->type);
     }
 
     ast_visit(v, binop_n.rhs);
@@ -324,7 +357,7 @@ void tyck_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
 
     if (tyck->type != arg_type) {
         tyck->had_error = true;
-        // FIXME: report (mismatch (operator))
+        tyck_report_mismatch(v->loc, arg_type, tyck->type);
     }
 
     tyck->type = res_type;
