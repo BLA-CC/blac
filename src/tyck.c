@@ -15,33 +15,39 @@ typedef struct {
     bool had_error;
 } Tyck;
 
-void tyck_report_mismatch(Location loc, Type expected, Type found) {
+static void tyck_report_mismatch(Location loc, Type expected, Type found) {
 
     fprintf(
         stderr,
-        "Error: Type mismatch (in line %d, col %d). Expected '%s' but found '%s'.\n",
-        loc.line, loc.col, str_type(expected), str_type(found)
-    );
+        "Error: Type mismatch (in line %d, col %d). Expected '%s' but found "
+        "'%s'.\n",
+        loc.line,
+        loc.col,
+        str_type(expected),
+        str_type(found));
 }
 
-void tyck_report_double_decl(Location loc, StrPool *strs, StrIdx ident) {
+static void tyck_report_double_decl(Location loc, StrPool *strs, StrIdx ident) {
     fprintf(
         stderr,
         "Error: Redeclaration of '%s' (in line %d, col %d).\n",
-        StrPool_get(strs, ident), loc.line, loc.col
-    );
+        StrPool_get(strs, ident),
+        loc.line,
+        loc.col);
 }
 
-void tyck_report_undefined(Location loc, StrPool *strs, StrIdx ident) {
+static void tyck_report_undefined(Location loc, StrPool *strs, StrIdx ident) {
     fprintf(
         stderr,
         "Error: Undefined symbol '%s' (in line %d, col %d).\n",
-        StrPool_get(strs, ident), loc.line, loc.col
-    );
+        StrPool_get(strs, ident),
+        loc.line,
+        loc.col);
 }
 
-void tyck_report_misc(Location loc, char *msg) {
-    fprintf(stderr, "Error: %s (in line %d, col %d).\n", msg, loc.line, loc.col);
+static void tyck_report_misc(Location loc, char *msg) {
+    fprintf(
+        stderr, "Error: %s (in line %d, col %d).\n", msg, loc.line, loc.col);
 }
 
 static void tyck_prog(AstVisitor *v, AstNodeFull_List prog_n) {
@@ -68,10 +74,9 @@ static void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
     ast_visit(v, var_decl_n.init_expr);
 
     if (!symtable_put_symbol(
-        &tyck->sym_table,
-        var_decl_n.ident,
-        (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE }
-    )) {
+            &tyck->sym_table,
+            var_decl_n.ident,
+            (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE })) {
         tyck->had_error = true;
 
         tyck_report_double_decl(v->loc, &v->strs, var_decl_n.ident);
