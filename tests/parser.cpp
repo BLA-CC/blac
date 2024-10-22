@@ -37,29 +37,6 @@ class ParserTest : public ::testing::Test {
 
     AstNode Root(Ast ast) { return ast.nodes[0]; }
 
-    // AstNode Node(NodeIdx idx) { return parser.nodes.elems[idx]; }
-
-    // AstNode FirstMethod() {
-    //     return Node(Node(Root().data.PROG.meths).data.LIST.begin);
-    // }
-
-
-
-    // void AssertVarDecl(const AstNode &var_decl, Type type, const char *name) {
-    //     ASSERT_EQ(var_decl.data.VAR_DECL.type, type);
-    //     ASSERT_EQ(var_decl.data.VAR_DECL.ident, StrPool_put(&str_pool, name));
-    // }
-
-    // void AssertBinOp(
-    //     const AstNode &node,
-    //     BinOp op,
-    //     AstNodeKind lhs_kind,
-    //     AstNodeKind rhs_kind) {
-    //     ASSERT_EQ(node.kind, AstNodeKind_BINOP);
-    //     ASSERT_EQ(node.data.BINOP.op, op);
-    //     ASSERT_EQ(Node(node.data.BINOP.lhs).kind, lhs_kind);
-    //     ASSERT_EQ(Node(node.data.BINOP.rhs).kind, rhs_kind);
-    // }
 };
 
 TEST_F(ParserTest, ParseProgram) {
@@ -143,22 +120,23 @@ TEST_F(ParserTest, ParseMethodDecl) {
     ASSERT_EQ(meth.ret_type, Type_VOID);
 
     ASSERT_EQ(
-        ast.nodes[meth.params_begin].data.lhs,
+        ast.nodes[meth.params].data.lhs,
         Type_INT
     );
+    NodeIdx params_begin = ast.nodes[meth.params].data.lhs;
 
     ASSERT_EQ(
-        ast.nodes[meth.params_begin].data.rhs,
+        ast.nodes[params_begin].data.rhs,
         StrPool_put(&str_pool, "a")
     );
 
     ASSERT_EQ(
-        ast.nodes[meth.params_begin + 1 ].data.lhs,
+        ast.nodes[params_begin + 1 ].data.lhs,
         Type_BOOL
     );
 
     ASSERT_EQ(
-        ast.nodes[meth.params_begin + 1].data.rhs,
+        ast.nodes[params_begin + 1].data.rhs,
         StrPool_put(&str_pool, "b")
     );
 }
