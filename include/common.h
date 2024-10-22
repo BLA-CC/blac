@@ -12,6 +12,7 @@ extern "C" {
 #include <stdio.h>
 
 typedef enum {
+    Type_NONE,
     Type_VOID,
     Type_INT,
     Type_BOOL,

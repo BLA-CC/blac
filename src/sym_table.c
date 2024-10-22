@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 Vec_Impl(SymInfo);
-Vec_Impl(Type);
 
 void symtable_push_scope(SymTable *self) {
     self->cur_scope++;
@@ -62,7 +61,7 @@ void symtable_display(SymTable *self, StrPool *strs) {
     for(uint32_t i = 0; i < self->symbols.len; i++) {
         SymInfo *s = &self->symbols.elems[i];
         printf("\t\t%s: %d", StrPool_get(strs, s->sym), s->scope);
-        if (s->type_info.tg == TypeG_FUN) {
+        if (s->type_info.params != NO_NODE) {
             printf("(fun)\n"); 
         } else {
             printf("(var)\n");

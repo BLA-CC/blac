@@ -1,3 +1,7 @@
+#ifndef _SYM_TABLE
+#define _SYM_TABLE
+
+#include "ast.h"
 #include "common.h"
 #include "str_pool.h"
 #include "vec.h"
@@ -11,11 +15,8 @@ typedef enum {
 Vec_Proto(Type);
 
 typedef struct {
-  TypeG tg;
-  union {
-    Type var;
-    TypeVec fun;
-  } type;
+    Type base;
+    NodeIdx params; // if params is NO_NODE, this is a basic type
 } TypeInfo;
 
 typedef struct {
@@ -107,3 +108,6 @@ void symtable_release(SymTable *self);
  * @param[in] strs Pointer to the string pool for resolving symbol identifiers.
  */
 void symtable_display(SymTable *self, StrPool *strs);
+
+#endif /* _SYM_TABLE */
+
