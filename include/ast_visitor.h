@@ -1,6 +1,10 @@
 #ifndef AST_VISITOR_H
 #define AST_VISITOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #include "ast.h"
 #include "str_pool.h"
 
@@ -11,6 +15,7 @@ typedef struct AstVisitor {
     Location loc;
 
     /* Expression visitors */
+    // clang-format off
     void (*visit_prog)(struct AstVisitor *v, AstNodeFull_List prog_n);
     void (*visit_block)(struct AstVisitor *v, AstNodeFull_List block_n);
     void (*visit_var_decl)(struct AstVisitor *v, AstNodeFull_VarDecl var_decl_n);
@@ -26,6 +31,7 @@ typedef struct AstVisitor {
     void (*visit_bool_lit)(struct AstVisitor *v, bool val);
     void (*visit_unop)(struct AstVisitor *v, AstNodeFull_UnOp unop_n);
     void (*visit_binop)(struct AstVisitor *v, AstNodeFull_BinOp binop_n);
+    // clang-format on
 } AstVisitor;
 
 /**
@@ -39,5 +45,8 @@ typedef struct AstVisitor {
  */
 void ast_visit(AstVisitor *self, NodeIdx idx);
 
-#endif // AST_VISITOR_H
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
+#endif // AST_VISITOR_H

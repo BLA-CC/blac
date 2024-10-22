@@ -1,6 +1,10 @@
 #ifndef _TYCK_H
 #define _TYCK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #include <stdbool.h>
 
 #include "ast.h"
@@ -15,5 +19,9 @@
  * @returns true if type checking was successful, false otherwse
  */
 bool tyck(const Ast ast, StrPool strs);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* _TYCK_H */
