@@ -119,11 +119,12 @@ TEST_F(ParserTest, ParseMethodDecl) {
     ASSERT_EQ(meth.ident, StrPool_put(&str_pool, "main"));
     ASSERT_EQ(meth.ret_type, Type_VOID);
 
+    NodeIdx params_begin = ast.nodes[meth.params].data.lhs;
+
     ASSERT_EQ(
-        ast.nodes[meth.params].data.lhs,
+        ast.nodes[params_begin].data.lhs,
         Type_INT
     );
-    NodeIdx params_begin = ast.nodes[meth.params].data.lhs;
 
     ASSERT_EQ(
         ast.nodes[params_begin].data.rhs,
