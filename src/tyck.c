@@ -12,13 +12,13 @@ typedef struct {
     bool had_error;
 } Tyck;
 
-void tyck_prog(AstVisitor *v, AstNodeFull_List prog_n) {
+static void tyck_prog(AstVisitor *v, AstNodeFull_List prog_n) {
     for (NodeIdx i = prog_n.begin; i < prog_n.end; i++) {
         ast_visit(v, i);
     }
 }
 
-void tyck_block(AstVisitor *v, AstNodeFull_List block_n) {
+static void tyck_block(AstVisitor *v, AstNodeFull_List block_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     symtable_push_scope(&tyck->sym_table);
@@ -30,16 +30,15 @@ void tyck_block(AstVisitor *v, AstNodeFull_List block_n) {
     symtable_pop_scope(&tyck->sym_table);
 }
 
-void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
+static void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     ast_visit(v, var_decl_n.init_expr);
 
     if (!symtable_put_symbol(
-        &tyck->sym_table,
-        var_decl_n.init_expr,
-        (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE }
-    )) {
+            &tyck->sym_table,
+            var_decl_n.init_expr,
+            (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE })) {
         tyck->had_error = true;
         // FIXME: report (double decl)
 
@@ -53,15 +52,15 @@ void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
     }
 }
 
-void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
+static void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     // before checking, to allow recursive calls
     if (!symtable_put_symbol(
-        &tyck->sym_table, 
-        meth_decl_n.ident, 
-        (TypeInfo){ .base = meth_decl_n.ret_type, .params = meth_decl_n.params }
-    )) {
+            &tyck->sym_table,
+            meth_decl_n.ident,
+            (TypeInfo){ .base = meth_decl_n.ret_type,
+                        .params = meth_decl_n.params })) {
         tyck->had_error = true;
         // FIXME: report (double decl (method))
     }
@@ -85,20 +84,19 @@ void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     symtable_pop_scope(&tyck->sym_table); // parameter scope
 }
 
-void tyck_param(AstVisitor *v, Type type, StrIdx ident) {
+static void tyck_param(AstVisitor *v, Type type, StrIdx ident) {
     Tyck *tyck = (Tyck *)v->ctx;
 
-    if(!symtable_put_symbol(
-        &tyck->sym_table,
-        ident,
-        (TypeInfo){ .base = type, .params = NO_NODE }
-    )) {
+    if (!symtable_put_symbol(
+            &tyck->sym_table,
+            ident,
+            (TypeInfo){ .base = type, .params = NO_NODE })) {
         tyck->had_error = true;
         // FIXME: report (double decl param)
     }
 }
 
-void tyck_if(AstVisitor *v, AstNodeFull_If if_n) {
+static void tyck_if(AstVisitor *v, AstNodeFull_If if_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     ast_visit(v, if_n.cond);
@@ -114,7 +112,7 @@ void tyck_if(AstVisitor *v, AstNodeFull_If if_n) {
     }
 }
 
-void tyck_while(AstVisitor *v, AstNodeFull_While while_n) {
+static void tyck_while(AstVisitor *v, AstNodeFull_While while_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     ast_visit(v, while_n.cond);
@@ -126,7 +124,7 @@ void tyck_while(AstVisitor *v, AstNodeFull_While while_n) {
     ast_visit(v, while_n.body);
 }
 
-void tyck_ret(AstVisitor *v, NodeIdx expr_n) {
+static void tyck_ret(AstVisitor *v, NodeIdx expr_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     if (expr_n != NO_NODE) {
@@ -142,10 +140,11 @@ void tyck_ret(AstVisitor *v, NodeIdx expr_n) {
     }
 }
 
-void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
+static void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
-    SymInfo *sym_info = symnode_get_symbol(&tyck->sym_table, meth_call_n.meth_ident);
+    SymInfo *sym_info =
+        symnode_get_symbol(&tyck->sym_table, meth_call_n.meth_ident);
 
     if (sym_info == NULL) {
         tyck->had_error = true;
@@ -192,7 +191,7 @@ void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     tyck->type = ret_type;
 }
 
-void tyck_var(AstVisitor *v, StrIdx ident) {
+static void tyck_var(AstVisitor *v, StrIdx ident) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     SymInfo *sym_info = symnode_get_symbol(&tyck->sym_table, ident);
@@ -214,21 +213,21 @@ void tyck_var(AstVisitor *v, StrIdx ident) {
     tyck->type = sym_info->type_info.base;
 }
 
-void tyck_int_lit(AstVisitor *v, uint32_t val) {
-    (void) val;
+static void tyck_int_lit(AstVisitor *v, uint32_t val) {
+    (void)val;
     Tyck *tyck = (Tyck *)v->ctx;
 
     tyck->type = Type_INT;
 }
 
-void tyck_bool_lit(AstVisitor *v, bool val) {
-    (void) val;
+static void tyck_bool_lit(AstVisitor *v, bool val) {
+    (void)val;
     Tyck *tyck = (Tyck *)v->ctx;
 
     tyck->type = Type_BOOL;
 }
 
-void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
+static void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     SymInfo *sym_info = symnode_get_symbol(&tyck->sym_table, asgn_n.target);
@@ -253,7 +252,7 @@ void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     }
 }
 
-void tyck_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
+static void tyck_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     Type op_type;
@@ -279,7 +278,7 @@ void tyck_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
     tyck->type = op_type;
 }
 
-void tyck_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
+static void tyck_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     Type arg_type, res_type;
@@ -331,28 +330,13 @@ void tyck_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
 }
 
 bool tyck(const Ast ast, StrPool strs) {
-    Tyck tyck = {0};
+    Tyck tyck = { 0 };
 
     AstVisitor visitor = (AstVisitor){
-        ast,
-        strs,
-        &tyck,
-        {0},
-        tyck_prog,
-        tyck_block,
-        tyck_var_decl,
-        tyck_meth_decl,
-        tyck_param,
-        tyck_asgn,
-        tyck_if,
-        tyck_while,
-        tyck_ret,
-        tyck_meth_call,
-        tyck_var,
-        tyck_int_lit,
-        tyck_bool_lit,
-        tyck_unop,
-        tyck_binop
+        ast,          strs,          &tyck,          { 0 },          tyck_prog,
+        tyck_block,   tyck_var_decl, tyck_meth_decl, tyck_param,     tyck_asgn,
+        tyck_if,      tyck_while,    tyck_ret,       tyck_meth_call, tyck_var,
+        tyck_int_lit, tyck_bool_lit, tyck_unop,      tyck_binop
     };
 
     ast_visit(&visitor, AST_ROOT);
@@ -362,7 +346,8 @@ bool tyck(const Ast ast, StrPool strs) {
 /* void tyck_stmt(Tyck *tyck, const Ast ast, const AstNode *node) { */
 /*     switch (node->kind) { */
 /*     case AstNodeKind_BLOCK: { */
-/*         AstNodeFull_List full_block = Ast_full_list(ast, node - ast.nodes); */
+/*         AstNodeFull_List full_block = Ast_full_list(ast, node - ast.nodes);
+ */
 /*         for (NodeIdx i = full_block.begin; i < full_block.end; i++) { */
 /*             tyck_stmt(tyck, ast, &ast.nodes[i]); */
 /*         } */
@@ -442,4 +427,3 @@ bool tyck(const Ast ast, StrPool strs) {
 /*         } */
 /*     } */
 /* } */
-
