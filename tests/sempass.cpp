@@ -160,6 +160,46 @@ TEST_F(SempassTest, BadFunctionCall) {
     ASSERT_TRUE(!TypeChecks(ast));
 }
 
+TEST_F(SempassTest, CallBasicType) {
+    Ast ast;
+    ASSERT_EQ(
+        ParseString(
+            "program {\n"
+
+            "integer hola = 10;\n"
+
+            "   void main() {\n"
+            "       hola();\n"
+            "   }\n"
+            "}",
+            ast),
+        0);
+    ASSERT_TRUE(!TypeChecks(ast));
+}
+
+TEST_F(SempassTest, UndefSymbols) {
+    Ast ast;
+    ASSERT_EQ(
+        ParseString(
+            "program {\n"
+            "       integer a = b;\n"
+            "}",
+            ast),
+        0);
+    ASSERT_TRUE(!TypeChecks(ast));
+
+    ASSERT_EQ(
+        ParseString(
+            "program {\n"
+            "   void main() {\n"
+            "       hola();\n"
+            "   }\n"
+            "}",
+            ast),
+        0);
+    ASSERT_TRUE(!TypeChecks(ast));
+}
+
 TEST_F(SempassTest, SampleProgram) {
     Ast ast;
     ASSERT_EQ(
