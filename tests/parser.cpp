@@ -21,7 +21,7 @@ class ParserTest : public ::testing::Test {
         yylex_destroy(scanner);
     }
 
-    int ParseString(const char *input, Ast *ast) {
+    int ParseString(const char *input, Ast &ast) {
         parser = { { 0 } };
         YY_BUFFER_STATE buffer = yy_scan_string(input, scanner);
         int result = yyparse(&parser, scanner);
@@ -30,7 +30,7 @@ class ParserTest : public ::testing::Test {
             return result;
         }
 
-        *ast = Parser_mk_ast(&parser);
+        ast = Parser_mk_ast(&parser);
         yy_delete_buffer(buffer, scanner);
         return result;
     }
@@ -42,8 +42,8 @@ class ParserTest : public ::testing::Test {
 
 TEST_F(ParserTest, ParseProgram) {
     Ast ast;
-    ASSERT_NE(ParseString("integer a = 4;", &ast), 0);
-    ASSERT_EQ(ParseString("program{}", &ast), 0);
+    ASSERT_NE(ParseString("integer a = 4;", ast), 0);
+    ASSERT_EQ(ParseString("program{}", ast), 0);
     ASSERT_EQ(ast.len, 1);
     ASSERT_EQ(Root(ast).kind, AstNodeKind_PROG);
 }
@@ -63,7 +63,7 @@ TEST_F(ParserTest, ExampleProgram) {
             "        }\n"
             "    }\n"
             "}\n",
-            &ast),
+            ast),
         0);
 }
 
@@ -77,7 +77,7 @@ TEST_F(ParserTest, ProgramBody) {
             "     bool bvar = 0;\n"
             "     void external() extern;\n"
             " }\n",
-            &ast),
+            ast),
         0);
     ASSERT_EQ(ast.len, 17);
 
@@ -93,7 +93,7 @@ TEST_F(ParserTest, ParseVariableDecl) {
             "     bool bvar = true;\n"
             "     integer ivar = 0;\n"
             " }\n",
-            &ast),
+            ast),
         0);
 
     ASSERT_EQ(ast.len, 7);
@@ -104,8 +104,8 @@ TEST_F(ParserTest, ParseVariableDecl) {
     ASSERT_EQ(var_decl.ident, StrPool_put(&str_pool, "bvar"));
     ASSERT_NE(var_decl.init_expr, NO_NODE);
 
-    ASSERT_NE(ParseString("program { bool bvar; }", &ast), 0);
-    ASSERT_NE(ParseString("program { bool; }", &ast), 0);
+    ASSERT_NE(ParseString("program { bool bvar; }", ast), 0);
+    ASSERT_NE(ParseString("program { bool; }", ast), 0);
 }
 
 TEST_F(ParserTest, ParseMethodDecl) {
@@ -118,7 +118,7 @@ TEST_F(ParserTest, ParseMethodDecl) {
             "     bool func2() { return true; }\n"
             "     void print(integer i) extern;\n"
             " }\n",
-            &ast),
+            ast),
         0);
 
     ASSERT_EQ(ast.len, 33);
@@ -152,7 +152,7 @@ TEST_F(ParserTest, ParseBlock) {
             "         w = true;\n"
             "     }\n"
             " }\n",
-            &ast),
+            ast),
         0);
 
     ASSERT_NE(
@@ -162,7 +162,7 @@ TEST_F(ParserTest, ParseBlock) {
             "         void func(integer a) {}\n"
             "     }\n"
             " }\n",
-            &ast),
+            ast),
         0);
 }
 
@@ -185,7 +185,7 @@ TEST_F(ParserTest, ParseStatements) {
             "         return 0;\n"
             "     }\n"
             " }\n",
-            &ast),
+            ast),
         0);
 
     AstNodeFull_List body = Ast_full_block(
@@ -195,7 +195,7 @@ TEST_F(ParserTest, ParseStatements) {
 
 TEST_F(ParserTest, ParseArithExpression) {
     Ast ast;
-    ASSERT_EQ(ParseString("program { integer x = 1 + 2 * 3; }", &ast), 0);
+    ASSERT_EQ(ParseString("program { integer x = 1 + 2 * 3; }", ast), 0);
 
     AstNodeFull_VarDecl var_decl =
         Ast_full_var_decl(ast, Ast_full_prog(ast).begin);
@@ -207,14 +207,14 @@ TEST_F(ParserTest, ParseArithExpression) {
     ASSERT_EQ(Ast_full_binop(ast, binop.rhs).op, BinOp_MUL);
 
     ASSERT_NE(
-        ParseString("program { void f() { integer x = 10 + ; }}", &ast), 0);
-    ASSERT_NE(ParseString("program { void f() { integer x = ; }}", &ast), 0);
+        ParseString("program { void f() { integer x = 10 + ; }}", ast), 0);
+    ASSERT_NE(ParseString("program { void f() { integer x = ; }}", ast), 0);
 }
 
 TEST_F(ParserTest, ParseBoolExpressions) {
     Ast ast;
     ASSERT_EQ(
-        ParseString(" program { bool result = true && false; }\n", &ast), 0);
+        ParseString(" program { bool result = true && false; }\n", ast), 0);
 
     AstNodeFull_BinOp binop = Ast_full_binop(
         ast, Ast_full_var_decl(ast, Ast_full_prog(ast).begin).init_expr);
