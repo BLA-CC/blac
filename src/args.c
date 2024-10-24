@@ -103,4 +103,3 @@ Args arg_parse(int argc, char *argv[]) {
 
     return self;
 }
-

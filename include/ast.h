@@ -192,7 +192,7 @@ typedef struct {
 void Ast_release(Ast *ast);
 
 typedef uint32_t NodeIdx;
-#define NO_NODE 0
+#define NO_NODE  0
 #define AST_ROOT 0
 
 /*

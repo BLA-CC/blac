@@ -9,7 +9,9 @@ class LexerTest : public ::testing::Test {
     yyscan_t scanner;
     YY_BUFFER_STATE buffer;
 
-    void SetUp() override { yylex_init_extra(&str_pool, &scanner); }
+    void SetUp() override {
+        yylex_init_extra(&str_pool, &scanner);
+    }
 
     void TearDown() override {
         yy_delete_buffer(buffer, scanner);

@@ -10,11 +10,13 @@
         ctx->stream,                                                           \
         "%*s" fmt,                                                             \
         ctx->skip_indent ? (ctx->skip_indent = false, 1) : ctx->indent,        \
-            "" __VA_OPT__(,)                                                   \
-            __VA_ARGS__)
+        "" __VA_OPT__(, ) __VA_ARGS__)
+
+// clang-format off
 #define INDENT do { ctx->indent += INDENT_SZ; } while (0)
 #define DEDENT do { ctx->indent -= INDENT_SZ; } while (0)
 #define SKIP_INDENT do { ctx->skip_indent = true; } while (0)
+// clang-format on
 
 typedef struct PrintCtx {
     FILE *stream;
@@ -171,7 +173,6 @@ void display_param(AstVisitor *v, Type type, StrIdx ident) {
     PPRINT(")\n");
 }
 
-
 void display_if(AstVisitor *v, AstNodeFull_If if_n) {
     PrintCtx *ctx = (PrintCtx *)v->ctx;
 
@@ -221,7 +222,6 @@ void display_ret(AstVisitor *v, NodeIdx expr_idx) {
     }
 }
 
-
 void display_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     PrintCtx *ctx = (PrintCtx *)v->ctx;
     StrPool strs = v->strs;
@@ -261,14 +261,13 @@ void display_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
 
     PPRINT("(asgn:\n");
     INDENT;
-    PPRINT("target: %s\n" , StrPool_get(&strs, asgn_n.target));
+    PPRINT("target: %s\n", StrPool_get(&strs, asgn_n.target));
     PPRINT("expr:");
     SKIP_INDENT;
     ast_visit(v, asgn_n.expr);
     DEDENT;
     PPRINT(")\n");
 }
-
 
 void display_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
     PrintCtx *ctx = (PrintCtx *)v->ctx;
@@ -294,11 +293,10 @@ void display_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     PPRINT(")\n");
 }
 
-
-
-void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream){
+void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream) {
     PrintCtx ctx = { .stream = stream, .indent = indent };
 
+    // clang-format off
     AstVisitor visitor = (AstVisitor){
         ast,
         strs,
@@ -320,7 +318,7 @@ void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream){
         display_unop,
         display_binop
     };
+    // clang-format on
 
     ast_visit(&visitor, AST_ROOT);
 }
-

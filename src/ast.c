@@ -64,7 +64,7 @@ AstNodeFull_MethDecl Ast_full_meth_decl(Ast ast, NodeIdx idx) {
         assert(proto_node->data.lhs < ast.len);
         result.ret_type = proto_node->data.rhs;
         result.ident = node->data.lhs;
-        result.params= proto_node->data.lhs;
+        result.params = proto_node->data.lhs;
         result.body = NO_NODE;
     }
     return result;

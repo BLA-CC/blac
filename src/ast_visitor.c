@@ -29,7 +29,6 @@ void ast_visit(AstVisitor *self, NodeIdx idx) {
         self->visit_meth_decl(self, Ast_full_meth_decl(self->ast, idx));
         break;
 
-
     case AstNodeKind_PARAM:
         self->visit_param(self, node->data.lhs, node->data.rhs);
         break;
@@ -96,4 +95,3 @@ void ast_visit(AstVisitor *self, NodeIdx idx) {
 
     self->loc = prev_loc;
 }
-

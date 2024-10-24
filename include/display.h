@@ -26,4 +26,3 @@ void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream);
 const char *str_type(Type type);
 
 #endif // _DISPLAY_H
-
