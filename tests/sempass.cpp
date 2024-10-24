@@ -44,12 +44,24 @@ class SempassTest : public ::testing::Test {
     }
 };
 
+
 TEST_F(SempassTest, EmptyProgram) {
     Ast ast;
     ASSERT_EQ(ParseString("program {}", ast), 0);
-    ASSERT_TRUE(TypeChecks(ast));
+    ASSERT_TRUE(!TypeChecks(ast));
 }
 
+TEST_F(SempassTest, MainRequired) {
+    Ast ast;
+    ASSERT_EQ(ParseString("program {void notmain(){}}", ast), 0);
+    ASSERT_TRUE(!TypeChecks(ast));
+}
+
+TEST_F(SempassTest, NoArgsInMain) {
+    Ast ast;
+    ASSERT_EQ(ParseString("program {void main(bool a){}}", ast), 0);
+    ASSERT_TRUE(!TypeChecks(ast));
+}
 TEST_F(SempassTest, MultiDeclaration) {
     Ast ast;
     ASSERT_EQ(
@@ -57,6 +69,7 @@ TEST_F(SempassTest, MultiDeclaration) {
             "program {\n"
             "   integer hola() extern;\n"
             "   integer hola(integer x) extern;\n"
+            "   void main() {}\n"
             "}",
             ast),
         0);
@@ -67,6 +80,7 @@ TEST_F(SempassTest, MultiDeclaration) {
             "program {\n"
             "   bool a = true;\n"
             "   bool a = false;\n"
+            "   void main() {}\n"
             "}",
             ast),
         0);
@@ -79,6 +93,7 @@ TEST_F(SempassTest, TypeMismatch) {
         ParseString(
             "program {\n"
             "   bool qux = 2 * 1;\n"
+            "   void main() {}\n"
             "}",
             ast),
         0);
@@ -88,6 +103,7 @@ TEST_F(SempassTest, TypeMismatch) {
         ParseString(
             "program {\n"
             "   integer qux = false;\n"
+            "   void main() {}\n"
             "}",
             ast),
         0);
@@ -183,6 +199,7 @@ TEST_F(SempassTest, UndefSymbols) {
         ParseString(
             "program {\n"
             "       integer a = b;\n"
+            "   void main() {}\n"
             "}",
             ast),
         0);
