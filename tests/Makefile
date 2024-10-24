@@ -35,5 +35,5 @@ run-tests: $(TARGET)
 	./$(TARGET)
 
 clean:
-	rm -f $(TEST_OBJECT) $(TARGET)
+	rm -f $(TEST_OBJECT) $(TARGET) $(PARSER_O) $(LEXER_O)
 
