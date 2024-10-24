@@ -200,6 +200,25 @@ TEST_F(SempassTest, UndefSymbols) {
     ASSERT_TRUE(!TypeChecks(ast));
 }
 
+TEST_F(SempassTest, RedefSymbols) {
+    Ast ast;
+
+    ASSERT_EQ(
+        ParseString(
+            "program {\n"
+            "   bool main() {\n"
+            "       bool x = true;\n"
+            "       {\n"
+            "           integer x = 3;\n"
+            "       }\n"
+            "       return x;\n"
+            "   }\n"
+            "}",
+            ast),
+        0);
+    ASSERT_TRUE(TypeChecks(ast));
+}
+
 TEST_F(SempassTest, SampleProgram) {
     Ast ast;
     ASSERT_EQ(

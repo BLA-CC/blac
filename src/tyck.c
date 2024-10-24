@@ -16,7 +16,6 @@ typedef struct {
 } Tyck;
 
 static void tyck_report_mismatch(Location loc, Type expected, Type found) {
-
     fprintf(
         stderr,
         "Error: Type mismatch (in line %d, col %d). Expected '%s' but found "
@@ -183,7 +182,7 @@ static void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
     SymInfo *sym_info =
-        symnode_get_symbol(&tyck->sym_table, meth_call_n.meth_ident);
+        symtable_get_symbol(&tyck->sym_table, meth_call_n.meth_ident);
 
     if (sym_info == NULL) {
         tyck->had_error = true;
@@ -233,7 +232,7 @@ static void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
 static void tyck_var(AstVisitor *v, StrIdx ident) {
     Tyck *tyck = (Tyck *)v->ctx;
 
-    SymInfo *sym_info = symnode_get_symbol(&tyck->sym_table, ident);
+    SymInfo *sym_info = symtable_get_symbol(&tyck->sym_table, ident);
 
     if (sym_info == NULL) {
         tyck->had_error = true;
@@ -269,7 +268,7 @@ static void tyck_bool_lit(AstVisitor *v, bool val) {
 static void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     Tyck *tyck = (Tyck *)v->ctx;
 
-    SymInfo *sym_info = symnode_get_symbol(&tyck->sym_table, asgn_n.target);
+    SymInfo *sym_info = symtable_get_symbol(&tyck->sym_table, asgn_n.target);
 
     if (sym_info == NULL) {
         tyck->had_error = true;
@@ -379,5 +378,6 @@ bool tyck(const Ast ast, StrPool strs) {
     };
 
     ast_visit(&visitor, AST_ROOT);
+    // TODO: check main
     return !tyck.had_error;
 }

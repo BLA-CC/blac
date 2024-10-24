@@ -42,7 +42,7 @@ bool symtable_put_symbol(
     return true;
 }
 
-SymInfo *symnode_get_symbol(SymTable *self, StrIdx sym) {
+SymInfo *symtable_get_symbol(SymTable *self, StrIdx sym) {
     for (int32_t i = self->symbols.len - 1; i >= 0; i--) {
         if (self->symbols.elems[i].sym == sym) {
             return &self->symbols.elems[i];

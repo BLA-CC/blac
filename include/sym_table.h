@@ -32,7 +32,7 @@ typedef struct {
 
 Vec_Proto(SymInfo)
 
-    typedef struct {
+typedef struct {
     uint32_t cur_scope;
     SymInfoVec symbols;
 } SymTable;
@@ -85,7 +85,7 @@ bool symtable_put_symbol(
  * @return Pointer to the SymInfo structure containing the symbol's information,
  *         or NULL if the symbol is not found.
  */
-SymInfo *symnode_get_symbol(SymTable *self, StrIdx sym);
+SymInfo *symtable_get_symbol(SymTable *self, StrIdx sym);
 
 /**
  * @brief Releases the memory allocated for the symbol table.
