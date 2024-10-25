@@ -7,6 +7,7 @@ typedef struct {
     SymTable sym_table;
     Type type;
     Type ret_type;
+    bool has_main;
     bool had_error;
 } Tyck;
 
@@ -39,14 +40,25 @@ static void tyck_report_undefined(Location loc, StrPool *strs, StrIdx ident) {
         loc.col);
 }
 
-static void tyck_report_misc(Location loc, char *msg) {
-    fprintf(
-        stderr, "Error: %s (in line %d, col %d).\n", msg, loc.line, loc.col);
+static void tyck_report_misc(Location *loc, char *msg) {
+    fprintf(stderr, "Error: %s", msg);
+
+    if (loc != NULL) {
+        fprintf(stderr, " (in line %d, col %d)", loc->line, loc->col);
+    }
+
+    fprintf(stderr, ".\n");
 }
 
 static void tyck_prog(AstVisitor *v, AstNodeFull_List prog_n) {
+    Tyck *tyck = (Tyck *)v->ctx;
     for (NodeIdx i = prog_n.begin; i < prog_n.end; i++) {
         ast_visit(v, i);
+    }
+
+    if (!tyck->has_main) {
+        tyck->had_error = true;
+        tyck_report_misc(NULL, "main method not defined");
     }
 }
 
@@ -103,9 +115,17 @@ static void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
         return;
     }
 
+    AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
+    if (strcmp(StrPool_get(&v->strs, meth_decl_n.ident), "main") == 0) {
+        tyck->has_main = true;
+
+        if (params.end > params.begin) {
+            tyck->had_error = true;
+            tyck_report_misc(&v->loc, "main method shouldn't have arguments");
+        }
+    }
     symtable_push_scope(&tyck->sym_table); // parameter scope
 
-    AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
     for (NodeIdx i = params.begin; i < params.end; i++) {
         ast_visit(v, i);
     }
@@ -188,7 +208,7 @@ static void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
 
     if (sym_info->type_info.params == NO_NODE) {
         tyck->had_error = true;
-        tyck_report_misc(v->loc, "Cannot call a basic type");
+        tyck_report_misc(&v->loc, "Cannot call a basic type");
         tyck->type = Type_NONE;
         return;
     }
@@ -200,7 +220,7 @@ static void tyck_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
 
     if (args_len != params_len) {
         tyck->had_error = true;
-        tyck_report_misc(v->loc, "Incorrect argument count");
+        tyck_report_misc(&v->loc, "Incorrect argument count");
         tyck->type = Type_NONE;
         return;
     }
@@ -238,7 +258,7 @@ static void tyck_var(AstVisitor *v, StrIdx ident) {
 
     if (sym_info->type_info.params != NO_NODE) {
         tyck->had_error = true;
-        tyck_report_misc(v->loc, "Methods cannot be used as values");
+        tyck_report_misc(&v->loc, "Methods cannot be used as values");
         tyck->type = Type_NONE;
         return;
     }
@@ -273,7 +293,7 @@ static void tyck_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
 
     if (sym_info->type_info.params != NO_NODE) {
         tyck->had_error = true;
-        tyck_report_misc(v->loc, "Cannot assign to method");
+        tyck_report_misc(&v->loc, "Cannot assign to method");
         return;
     }
 
@@ -373,7 +393,6 @@ bool tyck(const Ast ast, StrPool strs) {
     };
 
     ast_visit(&visitor, AST_ROOT);
-    // TODO: check main
 
     SymInfoVec_free(&tyck.sym_table.symbols);
 
