@@ -10,6 +10,8 @@ extern "C" {
 #include "sym_table.h"
 #include "vec.h"
 
+typedef uint32_t IrVar;
+
 typedef enum {
     Op_LABEL,   // .L{func}{a}:
     Op_MOV_LIT, // v[dst] = a
@@ -53,6 +55,26 @@ Vec_Proto(Func);
 typedef struct {
     FuncVec funcs;
 } Ir;
+
+typedef struct {
+    Ir ir;
+    Func *cur_func;
+
+    uint32_t cur_func_stack_size;
+
+    uint32_t vstack_top;
+    uint32_t label_gen;
+    SymTable sym_table;
+} IrGen;
+
+void ir_new_func(IrGen *ir_gen);
+
+IrVar ir_mk_var(IrGen *ir_gen);
+
+void ir_free_var(IrGen *ir_gen, IrVar v);
+
+uint32_t ir_mk_label(IrGen *ir_gen);
+
 
 #ifdef __cplusplus
 }

@@ -19,7 +19,8 @@ void symtable_pop_scope(SymTable *self, uint32_t *vstack_top) {
         SymInfo sym_info = SymInfoVec_pop(symbols);
 
         if (vstack_top != NULL) {
-            assert(sym_info.ir_info.loc == --*vstack_top);
+            *vstack_top -= 1;
+            assert(sym_info.ir_info.loc == *vstack_top);
         }
     }
     self->cur_scope--;
