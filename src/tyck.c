@@ -78,7 +78,7 @@ static void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
         return;
     }
 
-    if (tyck->type != var_decl_n.type) {
+    if (tyck->type != Type_NONE && tyck->type != var_decl_n.type) {
         tyck->had_error = true;
 
         tyck_report_mismatch(v->loc, var_decl_n.type, tyck->type);
@@ -374,5 +374,8 @@ bool tyck(const Ast ast, StrPool strs) {
 
     ast_visit(&visitor, AST_ROOT);
     // TODO: check main
+
+    SymInfoVec_free(&tyck.sym_table.symbols);
+
     return !tyck.had_error;
 }
