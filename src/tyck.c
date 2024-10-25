@@ -1,10 +1,5 @@
-#include <stdbool.h>
-#include <stdio.h>
-
-#include "ast.h"
+#include "tyck.h"
 #include "ast_visitor.h"
-#include "common.h"
-#include "str_pool.h"
 #include "sym_table.h"
 #include "display.h"
 
@@ -64,7 +59,7 @@ static void tyck_block(AstVisitor *v, AstNodeFull_List block_n) {
         ast_visit(v, i);
     }
 
-    symtable_pop_scope(&tyck->sym_table);
+    symtable_pop_scope(&tyck->sym_table, NULL);
 }
 
 static void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
@@ -119,7 +114,7 @@ static void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
 
     ast_visit(v, meth_decl_n.body);
 
-    symtable_pop_scope(&tyck->sym_table); // parameter scope
+    symtable_pop_scope(&tyck->sym_table, NULL); // parameter scope
 }
 
 static void tyck_param(AstVisitor *v, Type type, StrIdx ident) {

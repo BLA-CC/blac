@@ -9,14 +9,18 @@ void symtable_push_scope(SymTable *self) {
     self->cur_scope++;
 }
 
-void symtable_pop_scope(SymTable *self) {
+void symtable_pop_scope(SymTable *self, uint32_t *vstack_top) {
     assert(self->cur_scope > 0);
 
     SymInfoVec *symbols = &self->symbols;
 
     while ((symbols->len > 0) &&
            (symbols->elems[symbols->len - 1].scope == self->cur_scope)) {
-        SymInfoVec_pop(symbols);
+        SymInfo sym_info = SymInfoVec_pop(symbols);
+
+        if (vstack_top != NULL) {
+            assert(sym_info.ir_info.loc == --*vstack_top);
+        }
     }
     self->cur_scope--;
 }

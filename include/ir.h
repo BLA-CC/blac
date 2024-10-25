@@ -5,18 +5,19 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <stdint.h>
-
+#include "common.h"
+#include "str_pool.h"
+#include "sym_table.h"
 #include "vec.h"
 
 typedef enum {
-    Op_LABEL,   // l: dst
+    Op_LABEL,   // .L{func}{a}:
     Op_MOV_LIT, // v[dst] = a
     Op_MOV_VAR, // v[dst] = v[a]
-    Op_RET,     // ret dst
-    Op_JMP,     // goto dst
-    Op_JMP_CND, // if v[a] then (goto dst) else (skip)
-    Op_CALL,    // dst = f[a](...)
+    Op_RET,     // ret a
+    Op_JMP,     // goto .L{func}{a}
+    Op_JMP_CND, // if v[a] then (goto b) else (skip)
+    Op_CALL,    // dst = f[a](n arguments)
     Op_ARG_LIT, // f[dst] = a
     Op_ARG_VAR, // f[dst] = a
     Op_UNM,     // v[dst] = -v[a]
@@ -44,7 +45,14 @@ Vec_Proto(Instr);
 
 typedef struct {
     InstrVec instrs;
-} IR;
+    StrIdx name;
+} Func;
+
+Vec_Proto(Func);
+
+typedef struct {
+    FuncVec funcs;
+} Ir;
 
 #ifdef __cplusplus
 }

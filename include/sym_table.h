@@ -5,19 +5,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <stdint.h>
-
-#include "ast.h"
 #include "common.h"
+#include "ast.h"
 #include "str_pool.h"
 #include "vec.h"
-
-typedef enum {
-    TypeG_VAR,
-    TypeG_FUN,
-} TypeG;
-
-Vec_Proto(Type);
 
 typedef struct {
     Type base;
@@ -25,9 +16,14 @@ typedef struct {
 } TypeInfo;
 
 typedef struct {
+    uint32_t loc;
+} IrInfo;
+
+typedef struct {
     StrIdx sym;
     uint32_t scope;
     TypeInfo type_info;
+    IrInfo ir_info;
 } SymInfo;
 
 Vec_Proto(SymInfo)
@@ -54,8 +50,10 @@ void symtable_push_scope(SymTable *self);
  * declared within that scope.
  *
  * @param[in,out] self Pointer to the SymTable structure.
+ * @param[in,out] vstack_top If not NULL, should point to a variable that is
+ *                being used to simulate a stack during ir generation.
  */
-void symtable_pop_scope(SymTable *self);
+void symtable_pop_scope(SymTable *self, uint32_t *vstack_top);
 
 /**
  * @brief Adds a symbol to the current scope in the symbol table.
