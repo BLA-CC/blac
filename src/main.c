@@ -7,6 +7,7 @@
 #include "str_pool.h"
 #include "parser.h"
 #include "display.h"
+#include "ir.h"
 
 int main(int argc, char *argv[]) {
     Args args = arg_parse(argc, argv);
@@ -76,7 +77,21 @@ int main(int argc, char *argv[]) {
         goto stage_parse_cleanup;
     }
 
-    if (args.target > Target_PARSE) {
+    Ir ir = mk_ir(ast, strs);
+
+    if (args.target == Target_IR) {
+        sprintf(out_filename, "%s.ir", args.input);
+
+        FILE *output_file;
+        if ((output_file = fopen(out_filename, "w")) == NULL) {
+            fprintf(stderr, "error: could not create output file\n");
+            exit(EXIT_FAILURE);
+        }
+        display_ir(ir, strs, output_file);
+
+    }
+
+    if (args.target > Target_IR) {
         fprintf(stderr, "error: unimplemented stage\n");
         exit(EXIT_FAILURE);
     }

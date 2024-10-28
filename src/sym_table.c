@@ -19,8 +19,8 @@ void symtable_pop_scope(SymTable *self, uint32_t *vstack_top) {
         SymInfo sym_info = SymInfoVec_pop(symbols);
 
         if (vstack_top != NULL) {
-            *vstack_top -= 1;
             assert(sym_info.ir_info.loc == *vstack_top);
+            *vstack_top -= 1;
         }
     }
     self->cur_scope--;
@@ -29,7 +29,8 @@ void symtable_pop_scope(SymTable *self, uint32_t *vstack_top) {
 bool symtable_put_symbol(
     SymTable *self,
     const StrIdx ident,
-    const TypeInfo type_info) {
+    const TypeInfo type_info,
+    const IrInfo ir_info) {
 
     for (int32_t i = self->symbols.len - 1; i >= 0; i--) {
         if (self->cur_scope != self->symbols.elems[i].scope) {
@@ -41,7 +42,8 @@ bool symtable_put_symbol(
 
     SymInfo new = { .sym = ident,
                     .scope = self->cur_scope,
-                    .type_info = type_info };
+                    .type_info = type_info,
+                    .ir_info = ir_info };
 
     SymInfoVec_push(&self->symbols, new);
     return true;

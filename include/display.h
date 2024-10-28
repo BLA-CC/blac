@@ -6,6 +6,7 @@
 #include "str_pool.h"
 #include "parser.h"
 #include "ast.h"
+#include "ir.h"
 
 /**
  * @brief Displays the tokens produced by scanner. Consumes scanner.
@@ -22,6 +23,9 @@ void display_toks(yyscan_t scanner, StrPool strs, FILE *file);
  * @param[in] stream The output handle where the AST subtree will be printed.
  */
 void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream);
+
+// TODO: documentation
+void display_ir(const Ir ir, StrPool strs, FILE *stream);
 
 const char *str_type(Type type);
 

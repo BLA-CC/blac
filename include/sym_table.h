@@ -70,7 +70,8 @@ void symtable_pop_scope(SymTable *self, uint32_t *vstack_top);
 bool symtable_put_symbol(
     SymTable *self,
     const StrIdx ident,
-    const TypeInfo type_info);
+    const TypeInfo type_info,
+    const IrInfo ir_info);
 
 /**
  * @brief Retrieves a symbol from the symbol table.
