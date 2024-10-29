@@ -17,8 +17,8 @@ void ir_new_func(IrGen *ir_gen) {
 
 IrVar ir_mk_var(IrGen *ir_gen) {
     ir_gen->vstack_top += 1;
-    if (ir_gen->cur_func_stack_size < ir_gen->vstack_top) {
-        ir_gen->cur_func_stack_size = ir_gen->vstack_top;
+    if (ir_gen->cur_func->locals < ir_gen->vstack_top) {
+        ir_gen->cur_func->locals = ir_gen->vstack_top;
     }
     return ir_gen->vstack_top;
 }

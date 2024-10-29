@@ -4,7 +4,6 @@
 #include "str_pool.h"
 #include <stdio.h>
 
-#define INDENT_SZ 2
 #define PPRINT(fmt, ...)                                                       \
     fprintf(                                                                   \
         ctx->stream,                                                           \
@@ -293,7 +292,7 @@ void display_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     PPRINT(")\n");
 }
 
-void display_ast(const Ast ast, StrPool strs, NodeIdx indent, FILE *stream) {
+void display_ast(const Ast ast, StrPool strs, uint32_t indent, FILE *stream) {
     PrintCtx ctx = { .stream = stream, .indent = indent };
 
     // clang-format off

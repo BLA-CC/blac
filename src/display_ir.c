@@ -5,87 +5,79 @@
 #include <stdio.h>
 #include <sys/ucontext.h>
 
-void display_instr(const Instr inst, StrPool strs, FILE *stream) {
-    char *op;
-    switch (inst.op) {
+#define PPRINT(indent, fmt, ...) \
+    fprintf(stream, "%*s" fmt "\n", indent, "" __VA_OPT__(, ) __VA_ARGS__)
+
+static const char *op_2_str[] = {
+    [Op_UNM] = "unm",
+    [Op_NEG] = "neg",
+    [Op_MUL] = "mul",
+    [Op_DIV] = "div",
+    [Op_MOD] = "mod",
+    [Op_ADD] = "add",
+    [Op_SUB] = "sub",
+    [Op_LT] = "lt",
+    [Op_GT] = "gt",
+    [Op_EQ] = "eq",
+    [Op_AND] = "and",
+    [Op_OR] = "or",
+};
+
+void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
+    switch (instr.op) {
     case Op_LABEL:
-        op = "LABEL";
+        PPRINT(indent, ".L%u", instr.a);
         break;
     case Op_MOV_LIT:
-        op = "MOV_LIT";
+        PPRINT(indent + INDENT_SZ, "t%u := $%d", instr.dst, instr.a);
         break;
     case Op_MOV_VAR:
-        op = "MOV_VAR";
+        PPRINT(indent + INDENT_SZ, "t%u := t%d", instr.dst, instr.a);
         break;
     case Op_RET:
-        op = "RET";
+        PPRINT(indent + INDENT_SZ, "ret t%u", instr.a);
         break;
     case Op_JMP:
-        op = "JMP";
+        PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
         break;
     case Op_JMP_CND:
-        op = "JMP_CND";
+        PPRINT(indent + INDENT_SZ, "if t%u then jmp .L%u", instr.a, instr.b);
         break;
     case Op_CALL:
-        op = "CALL";
+        PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
         break;
-    case Op_ARG_LIT:
-        op = "ARG_LIT";
-        break;
-    case Op_ARG_VAR:
-        op = "ARG_VAR";
+    case Op_ARG:
+        PPRINT(indent + INDENT_SZ, "arg[%u] := t%u", instr.dst, instr.a);
         break;
     case Op_UNM:
-        op = "UNM";
-        break;
     case Op_NEG:
-        op = "NEG";
+        PPRINT(indent + INDENT_SZ, "t%u := %s t%u", instr.dst, op_2_str[instr.op], instr.a);
         break;
     case Op_MUL:
-        op = "MUL";
-        break;
     case Op_DIV:
-        op = "DIV";
-        break;
     case Op_MOD:
-        op = "MOD";
-        break;
     case Op_ADD:
-        op = "ADD";
-        break;
     case Op_SUB:
-        op = "SUB";
-        break;
     case Op_LT:
-        op = "LT";
-        break;
     case Op_GT:
-        op = "GT";
-        break;
     case Op_EQ:
-        op = "EQ";
-        break;
     case Op_AND:
-        op = "AND";
-        break;
     case Op_OR:
-        op = "OR";
+        PPRINT(indent + INDENT_SZ, "t%u := %s t%u t%u", instr.dst, op_2_str[instr.op], instr.a, instr.b);
         break;
     }
-    fprintf(stream,"%s\tdst[%d]\ta[%d]\tb[%d]\n", op, inst.dst, inst.a,
-    inst.b);
 }
 
-void display_ir(const Ir ir, StrPool strs, FILE *stream) {
-    // TODO: make it less ugly
+void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
     FuncVec funcs = ir.funcs;
-    Func curr;
+
     for (uint32_t i = 0; i < funcs.len; i++) {
-        curr = funcs.elems[i];
-        fprintf(stream, "\n%s:\n", StrPool_get(&strs, curr.name));
-        
-        for (uint32_t j = 0; j < curr.instrs.len; j++) {
-            display_instr(curr.instrs.elems[j], strs, stream);
+        Func func = funcs.elems[i];
+        PPRINT(indent, "%s (%u locals)", StrPool_get(&strs, func.name), func.locals);
+
+        InstrVec instrs = func.instrs;
+        for (uint32_t j = 0; j < instrs.len; j++) {
+            display_instr(instrs.elems[j], strs, indent + INDENT_SZ, stream);
         }
     }
 }

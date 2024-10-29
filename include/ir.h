@@ -20,8 +20,7 @@ typedef enum {
     Op_JMP,     // goto .L{func}{a}
     Op_JMP_CND, // if v[a] then (goto b) else (skip)
     Op_CALL,    // dst = f[a](n arguments)
-    Op_ARG_LIT, // f[dst] = a
-    Op_ARG_VAR, // f[dst] = a
+    Op_ARG,     // f[dst] = a
     Op_UNM,     // v[dst] = -v[a]
     Op_NEG,     // v[dst] = !v[a]
     Op_MUL,     // v[dst] = v[a] * v[b]
@@ -48,6 +47,7 @@ Vec_Proto(Instr);
 typedef struct {
     InstrVec instrs;
     StrIdx name;
+    uint32_t locals;
 } Func;
 
 Vec_Proto(Func);
