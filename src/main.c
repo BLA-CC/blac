@@ -57,11 +57,6 @@ int main(int argc, char *argv[]) {
 
     Ast ast = Parser_mk_ast(&parser);
 
-    if (!tyck(ast, strs)) {
-        exit_status = EXIT_FAILURE;
-        goto stage_sempass_error;
-    }
-
     if (args.target == Target_PARSE) {
         sprintf(out_filename, "%s.sint", args.input);
 
@@ -77,6 +72,11 @@ int main(int argc, char *argv[]) {
         goto stage_parse_cleanup;
     }
 
+    if (!tyck(ast, strs)) {
+        exit_status = EXIT_FAILURE;
+        goto stage_sempass_error;
+    }
+
     Ir ir = mk_ir(ast, strs);
 
     if (args.target == Target_IR) {
@@ -87,8 +87,9 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "error: could not create output file\n");
             exit(EXIT_FAILURE);
         }
-        display_ir(ir, strs, output_file);
+        display_ir(ir, strs, 0, output_file);
 
+        goto stage_ir_cleanup;
     }
 
     if (args.target > Target_IR) {
@@ -96,6 +97,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+stage_ir_cleanup:
+    FuncVec_free(&ir.funcs);
 stage_sempass_error:
 stage_parse_cleanup:
     StrPool_release(&strs);

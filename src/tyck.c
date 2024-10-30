@@ -126,6 +126,7 @@ static void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
             tyck_report_misc(&v->loc, "main method shouldn't have arguments");
         }
     }
+
     symtable_push_scope(&tyck->sym_table); // parameter scope
 
     for (NodeIdx i = params.begin; i < params.end; i++) {

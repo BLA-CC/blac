@@ -32,24 +32,28 @@ uint32_t ir_mk_label(IrGen *ir_gen) {
     return ir_gen->label_gen++;
 }
 
-void ir_prog (struct AstVisitor *v, AstNodeFull_List prog_n) {
+
+void ir_prog(AstVisitor *v, AstNodeFull_List prog_n) {
     for (NodeIdx i = prog_n.begin; i < prog_n.end; i++) {
         ast_visit(v, i);
     }
 }
 
-void ir_block(struct AstVisitor *v, AstNodeFull_List block_n) {
+void ir_block(AstVisitor *v, AstNodeFull_List block_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
+
     symtable_push_scope(&ir_gen->sym_table);
 
     for (NodeIdx i = block_n.begin; i < block_n.end; i++) {
         ast_visit(v, i);
     }
+
     symtable_pop_scope(&ir_gen->sym_table, &ir_gen->vstack_top);
 }
 
-void ir_var_decl(struct AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
+void ir_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
+
     IrVar new_var = ir_mk_var(ir_gen);
     symtable_put_symbol(
         &ir_gen->sym_table, var_decl_n.ident,
@@ -63,11 +67,11 @@ void ir_var_decl(struct AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
         .a = ir_gen->vstack_top,
         .dst = new_var
     };
-    InstrVec_push(&ir_gen->cur_func->instrs, var_decl_instr);    
-    ir_free_var(ir_gen, ir_gen->vstack_top);
+    InstrVec_push(&ir_gen->cur_func->instrs, var_decl_instr);
+    ir_free_var(ir_gen, var_decl_instr.a);
 }
 
-void ir_meth_decl(struct AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
+void ir_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
     ir_new_func(ir_gen);
     uint32_t label = ir_mk_label(ir_gen);
@@ -78,8 +82,6 @@ void ir_meth_decl(struct AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
             (IrInfo) { 0 });
 
     ir_gen->cur_func->name = meth_decl_n.ident;
-    Instr label_instr = (Instr) {.op = Op_LABEL, .a = label};
-    InstrVec_push(&ir_gen->cur_func->instrs, label_instr);
 
     AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
     for (NodeIdx i = params.begin; i < params.end; i++) {
@@ -89,7 +91,7 @@ void ir_meth_decl(struct AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     ast_visit(v, meth_decl_n.body);
 }
 
-void ir_param(struct AstVisitor *v, Type type, StrIdx ident) {
+void ir_param(AstVisitor *v, Type type, StrIdx ident) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
     IrVar new_param = ir_mk_var(ir_gen);
@@ -101,8 +103,9 @@ void ir_param(struct AstVisitor *v, Type type, StrIdx ident) {
 
 }
 
-void ir_asgn(struct AstVisitor *v, AstNodeFull_Asgn asgn_n) {
+void ir_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
+
     SymInfo *sym_info = symtable_get_symbol(&ir_gen->sym_table, asgn_n.target);
     uint32_t loc = sym_info->ir_info.loc;
     ast_visit(v, asgn_n.expr);
@@ -113,35 +116,35 @@ void ir_asgn(struct AstVisitor *v, AstNodeFull_Asgn asgn_n) {
         .dst = loc
     };
 
-    ir_free_var(ir_gen, ir_gen->vstack_top);
+    ir_free_var(ir_gen, mov_instr.a);
 }
 
-void ir_if(struct AstVisitor *v, AstNodeFull_If if_n) {
+void ir_if(AstVisitor *v, AstNodeFull_If if_n) {
     // TODO
 }
 
-void ir_while(struct AstVisitor *v, AstNodeFull_While while_n) {
+void ir_while(AstVisitor *v, AstNodeFull_While while_n) {
     // TODO
 }
 
-void ir_ret(struct AstVisitor *v, NodeIdx expr_idx) {
+void ir_ret(AstVisitor *v, NodeIdx expr_idx) {
     IrGen *ir_gen = (IrGen *)v->ctx;
     Instr ret_instr = (Instr){ .op = Op_RET };
 
     if (expr_idx != NO_NODE) {
         ast_visit(v, expr_idx);
         ret_instr.a = ir_gen->vstack_top;
-        ir_free_var(ir_gen, ir_gen->vstack_top);
+        ir_free_var(ir_gen, ret_instr.a);
     }
 
     InstrVec_push(&ir_gen->cur_func->instrs, ret_instr);
 }
 
-void ir_meth_call(struct AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
+void ir_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
     // TODO
 }
 
-void ir_var(struct AstVisitor *v, StrIdx ident) {
+void ir_var(AstVisitor *v, StrIdx ident) {
     IrGen *ir_gen = (IrGen *)v->ctx;
     SymInfo *sym_info = symtable_get_symbol(&ir_gen->sym_table, ident);
     
@@ -153,7 +156,7 @@ void ir_var(struct AstVisitor *v, StrIdx ident) {
     InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
 }
 
-void ir_int_lit(struct AstVisitor *v, uint32_t val) {
+void ir_int_lit(AstVisitor *v, uint32_t val) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
    Instr mov_instr = {
@@ -164,7 +167,7 @@ void ir_int_lit(struct AstVisitor *v, uint32_t val) {
     InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
 }
 
-void ir_bool_lit (struct AstVisitor *v, bool val) {
+void ir_bool_lit(AstVisitor *v, bool val) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
     Instr mov_instr = {
@@ -175,7 +178,7 @@ void ir_bool_lit (struct AstVisitor *v, bool val) {
     InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
 }
 
-void ir_unop (struct AstVisitor *v, AstNodeFull_UnOp unop_n) {
+void ir_unop (AstVisitor *v, AstNodeFull_UnOp unop_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
     ast_visit(v, unop_n.arg);
@@ -191,10 +194,10 @@ void ir_unop (struct AstVisitor *v, AstNodeFull_UnOp unop_n) {
     }
 
     InstrVec_push(&ir_gen->cur_func->instrs, unop_instr);
-    ir_free_var(ir_gen, ir_gen->vstack_top);
+    ir_free_var(ir_gen, unop_instr.a);
 }
 
-void ir_binop (struct AstVisitor *v, AstNodeFull_BinOp binop_n) {
+void ir_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
     ast_visit(v, binop_n.lhs);
@@ -202,8 +205,8 @@ void ir_binop (struct AstVisitor *v, AstNodeFull_BinOp binop_n) {
     ast_visit(v, binop_n.rhs);
 
     Instr binop_instr = (Instr) {
-        .a = ir_gen->vstack_top -1,
-        .b = ir_gen ->vstack_top,
+        .a = ir_gen->vstack_top - 1,
+        .b = ir_gen->vstack_top,
         .dst = ir_mk_var(ir_gen)
     };
 
@@ -242,8 +245,8 @@ void ir_binop (struct AstVisitor *v, AstNodeFull_BinOp binop_n) {
     
     InstrVec_push(&ir_gen->cur_func->instrs, binop_instr);
 
-    ir_free_var(ir_gen, ir_gen->vstack_top);
-    ir_free_var(ir_gen, ir_gen->vstack_top);
+    ir_free_var(ir_gen, binop_instr.b);
+    ir_free_var(ir_gen, binop_instr.a);
 }
 
 
