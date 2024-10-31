@@ -260,12 +260,17 @@ void ir_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
 
 Ir mk_ir(const Ast ast, StrPool strs) {
     IrGen ir_gen = { 0 };
+
     AstVisitor visitor = (AstVisitor) {
         ast, strs, &ir_gen, { 0 },
         ir_prog, ir_block, ir_var_decl, ir_meth_decl, ir_param, ir_asgn,
         ir_if, ir_while, ir_ret, ir_meth_call, ir_var, ir_int_lit,
         ir_bool_lit, ir_unop, ir_binop
     };
+
     ast_visit(&visitor, AST_ROOT);
+
+    SymInfoVec_free(&ir_gen.sym_table.symbols);
+
     return ir_gen.ir;
 }

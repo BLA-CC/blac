@@ -89,6 +89,8 @@ int main(int argc, char *argv[]) {
         }
         display_ir(ir, strs, 0, output_file);
 
+        fclose(output_file);
+
         goto stage_ir_cleanup;
     }
 
@@ -98,7 +100,11 @@ int main(int argc, char *argv[]) {
     }
 
 stage_ir_cleanup:
+    for (Func *func = &ir.funcs.elems[0]; func < &ir.funcs.elems[ir.funcs.len]; func++) {
+        InstrVec_free(&func->instrs);
+    }
     FuncVec_free(&ir.funcs);
+
 stage_sempass_error:
 stage_parse_cleanup:
     StrPool_release(&strs);
