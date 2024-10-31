@@ -73,22 +73,31 @@ void ir_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
 
 void ir_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
-    ir_new_func(ir_gen);
-    uint32_t label = ir_mk_label(ir_gen);
+
     symtable_put_symbol(
             &ir_gen->sym_table,
             meth_decl_n.ident,
             (TypeInfo){ 0 },
             (IrInfo) { 0 });
 
+    if (meth_decl_n.body == NO_NODE) {
+        return;
+    }
+
+    ir_new_func(ir_gen);
     ir_gen->cur_func->name = meth_decl_n.ident;
 
     AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
+
+    symtable_push_scope(&ir_gen->sym_table); // parameter scope
+
     for (NodeIdx i = params.begin; i < params.end; i++) {
         ast_visit(v, i);
     }
 
     ast_visit(v, meth_decl_n.body);
+
+    symtable_pop_scope(&ir_gen->sym_table, &ir_gen->vstack_top); // parameter scope
 }
 
 void ir_param(AstVisitor *v, Type type, StrIdx ident) {
