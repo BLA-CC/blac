@@ -120,10 +120,11 @@ void ir_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
     ast_visit(v, asgn_n.expr);
 
     Instr mov_instr = (Instr) {
-        .op = Op_MOV_LIT,
+        .op = Op_MOV_VAR,
         .a = ir_gen->vstack_top,
         .dst = loc
     };
+    InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
 
     ir_free_var(ir_gen, mov_instr.a);
 }
@@ -191,7 +192,7 @@ void ir_unop (AstVisitor *v, AstNodeFull_UnOp unop_n) {
     IrGen *ir_gen = (IrGen *)v->ctx;
 
     ast_visit(v, unop_n.arg);
-    Instr unop_instr = { .a = ir_gen->vstack_top, .dst =  ir_mk_var(ir_gen) };
+    Instr unop_instr = { .a = ir_gen->vstack_top, .dst = ir_gen->vstack_top };
 
     switch (unop_n.op) {
     case UnOp_UNM:
@@ -203,7 +204,6 @@ void ir_unop (AstVisitor *v, AstNodeFull_UnOp unop_n) {
     }
 
     InstrVec_push(&ir_gen->cur_func->instrs, unop_instr);
-    ir_free_var(ir_gen, unop_instr.a);
 }
 
 void ir_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
@@ -216,7 +216,7 @@ void ir_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     Instr binop_instr = (Instr) {
         .a = ir_gen->vstack_top - 1,
         .b = ir_gen->vstack_top,
-        .dst = ir_mk_var(ir_gen)
+        .dst = ir_gen->vstack_top - 1
     };
 
     switch (binop_n.op) {
@@ -255,7 +255,6 @@ void ir_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
     InstrVec_push(&ir_gen->cur_func->instrs, binop_instr);
 
     ir_free_var(ir_gen, binop_instr.b);
-    ir_free_var(ir_gen, binop_instr.a);
 }
 
 
