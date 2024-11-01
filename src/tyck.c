@@ -132,7 +132,7 @@ static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
     case AstNodeKind_UNM:
     case AstNodeKind_NEG: {
         NodeIdx operand = node->data.lhs;
-        Type expected_type = node->kind == UnOp_UNM ? Type_INT : Type_BOOL;
+        Type expected_type = node->kind == AstNodeKind_UNM ? Type_INT : Type_BOOL;
 
         Type operand_type = tyck_expr(tyck, ast, strs, operand);
         if (operand_type == Type_NONE) { return Type_NONE; }

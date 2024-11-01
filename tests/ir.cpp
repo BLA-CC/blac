@@ -45,7 +45,7 @@ class IrGenTest : public ::testing::Test {
     }
 
     Ir IrGen(Ast &ast) {
-        return mk_ir(ast, str_pool);
+        return mk_ir(ast);
     }
 
     AstNode Root(Ast ast) {
