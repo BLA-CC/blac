@@ -4,6 +4,7 @@
 #include "sym_table.h"
 #include "vec.h"
 #include <stdint.h>
+#include <stdio.h>
 
 Vec_Impl(Instr);
 Vec_Impl(Func);
@@ -30,6 +31,7 @@ void ir_free_var(IrGen *ir_gen, IrVar v) {
 uint32_t ir_mk_label(IrGen *ir_gen) {
     return ir_gen->label_gen++;
 }
+
 
 static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNode *node = &ast.nodes[idx];
@@ -76,9 +78,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     case AstNodeKind_SUB:
     case AstNodeKind_LT:
     case AstNodeKind_GT:
-    case AstNodeKind_EQ:
-    case AstNodeKind_AND:
-    case AstNodeKind_OR: {
+    case AstNodeKind_EQ: {
         NodeIdx lhs = node->data.lhs;
         NodeIdx rhs = node->data.rhs;
 
@@ -95,6 +95,53 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         InstrVec_push(&ir_gen->cur_func->instrs, binop_instr);
 
         ir_free_var(ir_gen, binop_instr.b);
+    } break;
+
+    case AstNodeKind_AND:
+    case AstNodeKind_OR: {
+        uint32_t label = ir_mk_label(ir_gen);
+
+        NodeIdx lhs = node->data.lhs;
+        ir_gen_expr(ir_gen, ast, lhs);
+        IrVar expr_res = ir_gen->vstack_top;
+        IrVar jump_cnd = expr_res;
+
+        if (node->kind == AstNodeKind_AND) {
+            jump_cnd = ir_mk_var(ir_gen);
+            Instr not_instr = (Instr){
+                .op = Op_NEG,
+                .dst = jump_cnd,
+                .a = expr_res
+            };
+            InstrVec_push(&ir_gen->cur_func->instrs, not_instr);
+            ir_free_var(ir_gen, jump_cnd);
+        }
+
+        Instr shrt_circuit_jmp = (Instr){
+            // HACK: this is awesome.
+            .op = Op_JMP_CND,
+            .a = jump_cnd,
+            .b = label,
+        };
+        InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_jmp);
+
+        NodeIdx rhs = node->data.rhs;
+        ir_gen_expr(ir_gen, ast, rhs);
+
+        Instr mov_res = (Instr){
+            .op = Op_MOV_VAR,
+            .a = ir_gen->vstack_top,
+            .dst = expr_res,
+        };
+        InstrVec_push(&ir_gen->cur_func->instrs, mov_res);
+        ir_free_var(ir_gen, mov_res.a);
+
+        Instr shrt_circuit_label = (Instr){
+            .op = Op_LABEL,
+            .a = label
+        };
+        InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_label);
+
     } break;
     default:
         unreachable;
