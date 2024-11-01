@@ -118,7 +118,6 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
 
         Instr shrt_circuit_jmp = (Instr){
-            // HACK: this is awesome.
             .op = Op_JMP_CND,
             .a = jump_cnd,
             .b = label,
@@ -190,6 +189,41 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     } break;
     case AstNodeKind_IF_SMP:
     case AstNodeKind_IF_ALT: {
+        AstNodeFull_If if_node = Ast_full_if(ast, idx);
+
+        uint32_t l_end = ir_mk_label(ir_gen);
+        uint32_t l_if = ir_mk_label(ir_gen);
+
+        ir_gen_expr(ir_gen, ast, if_node.cond);
+
+        Instr cnd_jump = (Instr) {
+            .op = Op_JMP_CND,
+            .a = ir_gen->vstack_top,
+            .b = l_if
+        };
+        ir_free_var(ir_gen, cnd_jump.a);
+        InstrVec_push(&ir_gen->cur_func->instrs, cnd_jump);
+
+        if (if_node.else_b != NO_NODE) {
+            ir_gen_stmt(ir_gen, ast, if_node.else_b);
+        }
+
+        InstrVec_push(
+            &ir_gen->cur_func->instrs,
+            (Instr){ .op = Op_JMP, .a = l_end });
+
+        InstrVec_push(
+            &ir_gen->cur_func->instrs,
+            (Instr){ .op = Op_LABEL, .a = l_if });
+
+        if (if_node.then_b != NO_NODE) {
+            ir_gen_stmt(ir_gen, ast, if_node.then_b);
+        }
+
+        InstrVec_push(
+            &ir_gen->cur_func->instrs,
+            (Instr){ .op = Op_LABEL, .a = l_end });
+
     } break;
     case AstNodeKind_WHILE: {
     } break;
