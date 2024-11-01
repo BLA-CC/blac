@@ -53,6 +53,14 @@ typedef struct {
 Vec_Proto(Func);
 
 typedef struct {
+    StrIdx name;
+    int32_t value;
+} Global;
+
+Vec_Proto(Global);
+
+typedef struct {
+    GlobalVec globals;
     FuncVec funcs;
 } Ir;
 
