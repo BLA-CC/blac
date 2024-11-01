@@ -83,7 +83,7 @@ static void tyck_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
             &tyck->sym_table,
             var_decl_n.ident,
             (TypeInfo){ .base = var_decl_n.type, .params = NO_NODE },
-            (IrInfo) { 0 })) {
+            (IrInfo){ 0 })) {
         tyck->had_error = true;
 
         tyck_report_double_decl(v->loc, &v->strs, var_decl_n.ident);
@@ -107,7 +107,7 @@ static void tyck_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
             meth_decl_n.ident,
             (TypeInfo){ .base = meth_decl_n.ret_type,
                         .params = meth_decl_n.params },
-            (IrInfo) { 0 })) {
+            (IrInfo){ 0 })) {
         tyck->had_error = true;
         tyck_report_double_decl(v->loc, &v->strs, meth_decl_n.ident);
     }
@@ -147,7 +147,7 @@ static void tyck_param(AstVisitor *v, Type type, StrIdx ident) {
             &tyck->sym_table,
             ident,
             (TypeInfo){ .base = type, .params = NO_NODE },
-            (IrInfo) { 0 })) {
+            (IrInfo){ 0 })) {
         tyck->had_error = true;
         tyck_report_double_decl(v->loc, &v->strs, ident);
     }

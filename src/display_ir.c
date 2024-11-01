@@ -5,22 +5,13 @@
 #include <stdio.h>
 #include <sys/ucontext.h>
 
-#define PPRINT(indent, fmt, ...) \
+#define PPRINT(indent, fmt, ...)                                               \
     fprintf(stream, "%*s" fmt "\n", indent, "" __VA_OPT__(, ) __VA_ARGS__)
 
 static const char *op_2_str[] = {
-    [Op_UNM] = "unm",
-    [Op_NEG] = "neg",
-    [Op_MUL] = "mul",
-    [Op_DIV] = "div",
-    [Op_MOD] = "mod",
-    [Op_ADD] = "add",
-    [Op_SUB] = "sub",
-    [Op_LT] = "lt",
-    [Op_GT] = "gt",
-    [Op_EQ] = "eq",
-    [Op_AND] = "and",
-    [Op_OR] = "or",
+    [Op_UNM] = "unm", [Op_NEG] = "neg", [Op_MUL] = "mul", [Op_DIV] = "div",
+    [Op_MOD] = "mod", [Op_ADD] = "add", [Op_SUB] = "sub", [Op_LT] = "lt",
+    [Op_GT] = "gt",   [Op_EQ] = "eq",   [Op_AND] = "and", [Op_OR] = "or",
 };
 
 void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
@@ -44,14 +35,24 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
         PPRINT(indent + INDENT_SZ, "if t%u then jmp .L%u", instr.a, instr.b);
         break;
     case Op_CALL:
-        PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := call %s %u",
+            instr.dst,
+            StrPool_get(&strs, instr.a),
+            instr.b);
         break;
     case Op_ARG:
         PPRINT(indent + INDENT_SZ, "arg[%u] := t%u", instr.dst, instr.a);
         break;
     case Op_UNM:
     case Op_NEG:
-        PPRINT(indent + INDENT_SZ, "t%u := %s t%u", instr.dst, op_2_str[instr.op], instr.a);
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := %s t%u",
+            instr.dst,
+            op_2_str[instr.op],
+            instr.a);
         break;
     case Op_MUL:
     case Op_DIV:
@@ -63,7 +64,13 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_EQ:
     case Op_AND:
     case Op_OR:
-        PPRINT(indent + INDENT_SZ, "t%u := %s t%u t%u", instr.dst, op_2_str[instr.op], instr.a, instr.b);
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := %s t%u t%u",
+            instr.dst,
+            op_2_str[instr.op],
+            instr.a,
+            instr.b);
         break;
     }
 }
@@ -73,7 +80,11 @@ void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
 
     for (uint32_t i = 0; i < funcs.len; i++) {
         Func func = funcs.elems[i];
-        PPRINT(indent, "%s (%u locals)", StrPool_get(&strs, func.name), func.locals);
+        PPRINT(
+            indent,
+            "%s (%u locals)",
+            StrPool_get(&strs, func.name),
+            func.locals);
 
         InstrVec instrs = func.instrs;
         for (uint32_t j = 0; j < instrs.len; j++) {

@@ -100,7 +100,8 @@ int main(int argc, char *argv[]) {
     }
 
 stage_ir_cleanup:
-    for (Func *func = &ir.funcs.elems[0]; func < &ir.funcs.elems[ir.funcs.len]; func++) {
+    for (Func *func = &ir.funcs.elems[0]; func < &ir.funcs.elems[ir.funcs.len];
+         func++) {
         InstrVec_free(&func->instrs);
     }
     FuncVec_free(&ir.funcs);

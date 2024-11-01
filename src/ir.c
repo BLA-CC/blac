@@ -10,7 +10,7 @@ Vec_Impl(Instr);
 Vec_Impl(Func);
 
 void ir_new_func(IrGen *ir_gen) {
-    Func new_func = {0};
+    Func new_func = { 0 };
     FuncVec_push(&ir_gen->ir.funcs, new_func);
     ir_gen->cur_func = &ir_gen->ir.funcs.elems[ir_gen->ir.funcs.len - 1];
 }
