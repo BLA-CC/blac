@@ -119,21 +119,13 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     case AstNodeKind_VAR_DECL_INIT: {
         AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, idx);
 
-        IrVar new_var = ir_mk_var(ir_gen); // TODO: revisar, sobra?
+        ir_gen_expr(ir_gen, ast, var_decl.init_expr);
+
         symtable_put_symbol(
             &ir_gen->sym_table,
             var_decl.ident,
             (TypeInfo){ 0 },
-            (IrInfo){ .loc = new_var });
-
-        ir_gen_expr(ir_gen, ast, var_decl.init_expr);
-
-        Instr var_decl_instr = (Instr){ .op = Op_MOV_VAR,
-                                        .a = ir_gen->vstack_top,
-                                        .dst = new_var };
-        InstrVec_push(&ir_gen->cur_func->instrs, var_decl_instr);
-
-        ir_free_var(ir_gen, var_decl_instr.a);
+            (IrInfo){ .loc = ir_gen->vstack_top });
     } break;
     case AstNodeKind_ASGN: {
         AstNodeFull_Asgn asgn = Ast_full_asgn(ast, idx);
