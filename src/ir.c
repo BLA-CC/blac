@@ -31,12 +31,15 @@ uint32_t ir_mk_label(IrGen *ir_gen) {
     return ir_gen->label_gen++;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNode *node = &ast.nodes[idx];
 
     switch (node->kind) {
     case AstNodeKind_METH_CALL: {
     } break;
+
     case AstNodeKind_VAR: {
         StrIdx ident = node->data.lhs;
         SymInfo *sym_info = symtable_get_symbol(&ir_gen->sym_table, ident);
@@ -46,6 +49,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
                             .dst = ir_mk_var(ir_gen) };
         InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
     } break;
+
     case AstNodeKind_INT_LIT:
     case AstNodeKind_BOOL_LIT: {
         int32_t val = node->data.lhs;
@@ -55,6 +59,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
                             .dst = ir_mk_var(ir_gen) };
         InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
     } break;
+
     case AstNodeKind_UNM:
     case AstNodeKind_NEG: {
         NodeIdx operand = node->data.lhs;
@@ -69,6 +74,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         };
         InstrVec_push(&ir_gen->cur_func->instrs, unop_instr);
     } break;
+
     case AstNodeKind_MUL:
     case AstNodeKind_DIV:
     case AstNodeKind_MOD:
@@ -96,6 +102,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         ir_free_var(ir_gen, binop_instr.b);
     } break;
+
     default:
         unreachable;
     }
@@ -114,8 +121,7 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
         symtable_pop_scope(&ir_gen->sym_table, &ir_gen->vstack_top);
     } break;
-    /* case AstNodeKind_VAR_DECL: */
-    // TODO: (tyck) assert todo se inicializa o valor x defecto?
+
     case AstNodeKind_VAR_DECL_INIT: {
         AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, idx);
 
@@ -127,6 +133,7 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             (TypeInfo){ 0 },
             (IrInfo){ .loc = ir_gen->vstack_top });
     } break;
+
     case AstNodeKind_ASGN: {
         AstNodeFull_Asgn asgn = Ast_full_asgn(ast, idx);
         SymInfo *sym_info =
@@ -141,11 +148,14 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         ir_free_var(ir_gen, mov_instr.a);
     } break;
+
     case AstNodeKind_IF_SMP:
     case AstNodeKind_IF_ALT: {
     } break;
+
     case AstNodeKind_WHILE: {
     } break;
+
     case AstNodeKind_RET: {
         NodeIdx expr_idx = node->data.lhs;
 
@@ -157,8 +167,10 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
         InstrVec_push(&ir_gen->cur_func->instrs, ret_instr);
     } break;
+
     case AstNodeKind_METH_CALL: {
     } break;
+
     default:
         unreachable;
     }
@@ -231,8 +243,7 @@ static void ir_gen_prog(IrGen *ir_gen, Ast ast) {
     }
 }
 
-Ir mk_ir(const Ast ast, StrPool strs) {
-    (void)strs;
+Ir mk_ir(const Ast ast) {
     IrGen ir_gen = { 0 };
 
     ir_gen_prog(&ir_gen, ast);

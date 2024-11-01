@@ -83,7 +83,7 @@ void ir_free_var(IrGen *ir_gen, IrVar v);
 
 uint32_t ir_mk_label(IrGen *ir_gen);
 
-Ir mk_ir(const Ast ast, StrPool strs);
+Ir mk_ir(const Ast ast);
 
 #ifdef __cplusplus
 }

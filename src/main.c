@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
         goto stage_sempass_error;
     }
 
-    Ir ir = mk_ir(ast, strs);
+    Ir ir = mk_ir(ast);
 
     if (args.target == Target_IR) {
         sprintf(out_filename, "%s.ir", args.input);
