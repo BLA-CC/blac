@@ -35,6 +35,10 @@ uint32_t ir_mk_label(IrGen *ir_gen) {
     return ir_gen->label_gen++;
 }
 
+static inline void ir_emit(IrGen *ir_gen, Instr instr) {
+    InstrVec_push(&ir_gen->cur_func->instrs, instr);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
@@ -48,10 +52,18 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         StrIdx ident = node->data.lhs;
         SymInfo *sym_info = symtable_get_symbol(&ir_gen->sym_table, ident);
 
-        Instr mov_instr = { .op = Op_MOV_VAR,
-                            .a = sym_info->ir_info.loc,
-                            .dst = ir_mk_var(ir_gen) };
-        InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
+        Instr get_instr;
+        if (sym_info != NULL) {
+            get_instr = (Instr){ .op = Op_MOV_VAR,
+                                 .a = sym_info->ir_info.loc,
+                                 .dst = ir_mk_var(ir_gen) };
+        } else { // global
+            get_instr = (Instr){ .op = Op_GET_GLOBAL,
+                                 .a = ident,
+                                 .dst = ir_mk_var(ir_gen) };
+        }
+        ir_emit(ir_gen, get_instr);
+
     } break;
 
     case AstNodeKind_INT_LIT:
@@ -61,7 +73,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         Instr mov_instr = { .op = Op_MOV_LIT,
                             .a = val,
                             .dst = ir_mk_var(ir_gen) };
-        InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
+        ir_emit(ir_gen, mov_instr);
     } break;
 
     case AstNodeKind_UNM:
@@ -76,7 +88,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             .a = ir_gen->vstack_top,
             .dst = ir_gen->vstack_top,
         };
-        InstrVec_push(&ir_gen->cur_func->instrs, unop_instr);
+        ir_emit(ir_gen, unop_instr);
     } break;
 
     case AstNodeKind_MUL:
@@ -100,7 +112,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             .b = ir_gen->vstack_top,
             .dst = ir_gen->vstack_top - 1,
         };
-        InstrVec_push(&ir_gen->cur_func->instrs, binop_instr);
+        ir_emit(ir_gen, binop_instr);
 
         ir_free_var(ir_gen, binop_instr.b);
     } break;
@@ -118,7 +130,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             .a = ir_gen->vstack_top,
             .b = label,
         };
-        InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_jmp);
+        ir_emit(ir_gen, shrt_circuit_jmp);
 
         // If the result of the expression is NOT lhs, free its location and
         // compute rhs there
@@ -127,7 +139,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         ir_gen_expr(ir_gen, ast, rhs);
 
         Instr shrt_circuit_label = (Instr){ .op = Op_LABEL, .a = label };
-        InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_label);
+        ir_emit(ir_gen, shrt_circuit_label);
     } break;
 
     default:
@@ -170,15 +182,22 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         AstNodeFull_Asgn asgn = Ast_full_asgn(ast, idx);
         SymInfo *sym_info =
             symtable_get_symbol(&ir_gen->sym_table, asgn.target);
-        IrVar loc = sym_info->ir_info.loc;
 
         ir_gen_expr(ir_gen, ast, asgn.expr);
 
-        Instr mov_instr =
-            (Instr){ .op = Op_MOV_VAR, .a = ir_gen->vstack_top, .dst = loc };
-        InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
+        Instr set_instr;
+        if (sym_info != NULL) {
+            set_instr = (Instr){ .op = Op_MOV_VAR,
+                                 .a = ir_gen->vstack_top,
+                                 .dst = sym_info->ir_info.loc };
+        } else { // global
+            set_instr = (Instr){ .op = Op_SET_GLOBAL,
+                                 .a = ir_gen->vstack_top,
+                                 .dst = asgn.target };
+        }
+        ir_emit(ir_gen, set_instr);
 
-        ir_free_var(ir_gen, mov_instr.a);
+        ir_free_var(ir_gen, set_instr.a);
 
         return false;
     }
@@ -194,7 +213,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         Instr cnd_jump =
             (Instr){ .op = Op_JMP_IF_T, .a = ir_gen->vstack_top, .b = l_else };
-        InstrVec_push(&ir_gen->cur_func->instrs, cnd_jump);
+        ir_emit(ir_gen, cnd_jump);
         ir_free_var(ir_gen, cnd_jump.a);
 
         bool then_has_ret = ir_gen_stmt(ir_gen, ast, if_node.then_b);
@@ -202,26 +221,18 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         if (if_node.else_b != NO_NODE) {
             if (!then_has_ret) {
-                InstrVec_push(
-                    &ir_gen->cur_func->instrs,
-                    (Instr){ .op = Op_JMP, .a = l_end });
+                ir_emit(ir_gen, (Instr){ .op = Op_JMP, .a = l_end });
             }
 
-            InstrVec_push(
-                &ir_gen->cur_func->instrs,
-                (Instr){ .op = Op_LABEL, .a = l_else });
+            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_else });
 
             else_has_ret = ir_gen_stmt(ir_gen, ast, if_node.else_b);
 
             if (!then_has_ret) {
-                InstrVec_push(
-                    &ir_gen->cur_func->instrs,
-                    (Instr){ .op = Op_LABEL, .a = l_end });
+                ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_end });
             }
         } else { // emit l_else, just to skip then_b
-            InstrVec_push(
-                &ir_gen->cur_func->instrs,
-                (Instr){ .op = Op_LABEL, .a = l_else });
+            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_else });
         }
 
         ir_gen_stmt(ir_gen, ast, if_node.then_b);
@@ -242,7 +253,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             ret_instr.a = ir_gen->vstack_top;
             ir_free_var(ir_gen, ret_instr.a);
         }
-        InstrVec_push(&ir_gen->cur_func->instrs, ret_instr);
+        ir_emit(ir_gen, ret_instr);
 
         return true;
     }
@@ -261,15 +272,12 @@ static void ir_gen_meth_body(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
     if (!has_ret) {
         Instr ret = (Instr){ .op = Op_RET, .a = 0 };
-        InstrVec_push(&ir_gen->cur_func->instrs, ret);
+        ir_emit(ir_gen, ret);
     }
 }
 
 static void ir_gen_meth_decl(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNodeFull_MethDecl meth_decl = Ast_full_meth_decl(ast, idx);
-
-    symtable_put_symbol(
-        &ir_gen->sym_table, meth_decl.ident, (TypeInfo){ 0 }, (IrInfo){ 0 });
 
     if (meth_decl.body == NO_NODE) {
         return;
@@ -322,7 +330,6 @@ static void ir_gen_prog(IrGen *ir_gen, Ast ast) {
         AstNode *node = &ast.nodes[i];
         switch (node->kind) {
         case AstNodeKind_VAR_DECL_INIT:
-        case AstNodeKind_VAR_DECL:
             ir_gen_global(ir_gen, ast, i);
             break;
 

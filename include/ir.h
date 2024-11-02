@@ -13,27 +13,29 @@ extern "C" {
 typedef uint32_t IrVar;
 
 typedef enum {
-    Op_LABEL,    // .L{func}{a}:
-    Op_MOV_LIT,  // v[dst] = a
-    Op_MOV_VAR,  // v[dst] = v[a]
-    Op_RET,      // ret a
-    Op_JMP,      // goto .L{func}{a}
-    Op_JMP_IF_F, // if !v[a] then goto b
-    Op_JMP_IF_T, // if v[a] then goto b
-    Op_CALL,     // dst = f[a](n arguments)
-    Op_ARG,      // f[dst] = a
-    Op_UNM,      // v[dst] = -v[a]
-    Op_NEG,      // v[dst] = !v[a]
-    Op_MUL,      // v[dst] = v[a] * v[b]
-    Op_DIV,      // v[dst] = v[a] / v[b]
-    Op_MOD,      // v[dst] = v[a] % v[b]
-    Op_ADD,      // v[dst] = v[a] + v[b]
-    Op_SUB,      // v[dst] = v[a] - v[b]
-    Op_LT,       // v[dst] = v[a] < v[b]
-    Op_GT,       // v[dst] = v[a] > v[b]
-    Op_EQ,       // v[dst] = v[a] == v[b]
-    Op_AND,      // v[dst] = v[a] & v[b]
-    Op_OR,       // v[dst] = v[a] | v[b]
+    Op_LABEL,      // .L{func}{a}:
+    Op_MOV_LIT,    // v[dst] = a
+    Op_MOV_VAR,    // v[dst] = v[a]
+    Op_RET,        // ret a
+    Op_JMP,        // goto .L{func}{a}
+    Op_JMP_IF_F,   // if !v[a] then goto b
+    Op_JMP_IF_T,   // if v[a] then goto b
+    Op_CALL,       // dst = f[a](n arguments)
+    Op_ARG,        // f[dst] = a
+    Op_UNM,        // v[dst] = -v[a]
+    Op_NEG,        // v[dst] = !v[a]
+    Op_MUL,        // v[dst] = v[a] * v[b]
+    Op_DIV,        // v[dst] = v[a] / v[b]
+    Op_MOD,        // v[dst] = v[a] % v[b]
+    Op_ADD,        // v[dst] = v[a] + v[b]
+    Op_SUB,        // v[dst] = v[a] - v[b]
+    Op_LT,         // v[dst] = v[a] < v[b]
+    Op_GT,         // v[dst] = v[a] > v[b]
+    Op_EQ,         // v[dst] = v[a] == v[b]
+    Op_AND,        // v[dst] = v[a] & v[b]
+    Op_OR,         // v[dst] = v[a] | v[b]
+    Op_SET_GLOBAL, // g[dst] = v[a]
+    Op_GET_GLOBAL, // v[dst] = g[a]
 } Op;
 
 typedef struct {
@@ -68,8 +70,6 @@ typedef struct {
 typedef struct {
     Ir ir;
     Func *cur_func;
-
-    uint32_t cur_func_stack_size;
 
     uint32_t vstack_top;
     uint32_t label_gen;

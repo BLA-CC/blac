@@ -75,6 +75,20 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
             instr.a,
             instr.b);
         break;
+    case Op_SET_GLOBAL:
+        PPRINT(
+            indent + INDENT_SZ,
+            "g_%s := t%u",
+            StrPool_get(&strs, instr.dst),
+            instr.a);
+        break;
+    case Op_GET_GLOBAL:
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := g_%s",
+            instr.dst,
+            StrPool_get(&strs, instr.a));
+        break;
     }
 }
 
