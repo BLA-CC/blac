@@ -18,6 +18,85 @@ static int32_t getglbl(const GlobalVec *globals, StrIdx name) {
     unreachable;
 }
 
+static int32_t
+eval_unary(Ast ast, AstNodeKind op, NodeIdx expr, const GlobalVec *globals) {
+    int32_t eval_res = consteval(ast, expr, globals);
+
+    switch (op) {
+    case AstNodeKind_UNM:
+        eval_res = -eval_res;
+        break;
+
+    case AstNodeKind_NEG:
+        eval_res = !eval_res;
+        break;
+
+    default:
+        unreachable;
+    }
+
+    return eval_res;
+}
+
+static int32_t eval_binary(
+    Ast ast,
+    AstNodeKind op,
+    NodeIdx lhs_id,
+    NodeIdx rhs_id,
+    const GlobalVec *globals) {
+
+    int32_t lhs = consteval(ast, lhs_id, globals);
+    int32_t rhs = consteval(ast, rhs_id, globals);
+    int32_t eval_res;
+
+    switch (op) {
+    case AstNodeKind_MUL:
+        eval_res = lhs * rhs;
+        break;
+
+    case AstNodeKind_DIV:
+        eval_res = lhs / rhs;
+        break;
+
+    case AstNodeKind_MOD:
+        eval_res = lhs % rhs;
+        break;
+
+    case AstNodeKind_ADD:
+        eval_res = lhs + rhs;
+        break;
+
+    case AstNodeKind_SUB:
+        eval_res = lhs - rhs;
+        break;
+
+    case AstNodeKind_LT:
+        eval_res = lhs < rhs;
+        break;
+
+    case AstNodeKind_GT:
+        eval_res = lhs > rhs;
+        break;
+
+    case AstNodeKind_EQ:
+        eval_res = lhs == rhs;
+        break;
+
+    case AstNodeKind_AND:
+        eval_res = lhs && rhs;
+        break;
+
+    case AstNodeKind_OR:
+        eval_res = lhs || rhs;
+        break;
+
+    default:
+        unreachable;
+    }
+
+    return eval_res;
+}
+
 int32_t consteval(Ast ast, NodeIdx i, const GlobalVec *globals) {
     AstNode *node = &ast.nodes[i];
 
@@ -34,70 +113,23 @@ int32_t consteval(Ast ast, NodeIdx i, const GlobalVec *globals) {
         break;
 
     case AstNodeKind_UNM:
-        eval_res = -consteval(ast, node->data.lhs, globals);
-        break;
-
     case AstNodeKind_NEG:
-        eval_res = !consteval(ast, node->data.lhs, globals);
+        eval_res = eval_unary(ast, node->kind, node->data.lhs, globals);
         break;
 
-    case AstNodeKind_MUL: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs * rhs;
-    } break;
-
-    case AstNodeKind_DIV: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs / rhs;
-    } break;
-
-    case AstNodeKind_MOD: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs % rhs;
-    } break;
-
-    case AstNodeKind_ADD: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs + rhs;
-    } break;
-
-    case AstNodeKind_SUB: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs - rhs;
-    } break;
-
-    case AstNodeKind_LT: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs < rhs;
-    } break;
-
-    case AstNodeKind_GT: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs > rhs;
-    } break;
-
-    case AstNodeKind_EQ: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        int32_t rhs = consteval(ast, node->data.rhs, globals);
-        eval_res = lhs * rhs;
-    } break;
-
-    case AstNodeKind_AND: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        eval_res = lhs && consteval(ast, node->data.rhs, globals);
-    } break;
-
-    case AstNodeKind_OR: {
-        int32_t lhs = consteval(ast, node->data.lhs, globals);
-        eval_res = lhs || consteval(ast, node->data.rhs, globals);
-    } break;
+    case AstNodeKind_MUL:
+    case AstNodeKind_DIV:
+    case AstNodeKind_MOD:
+    case AstNodeKind_ADD:
+    case AstNodeKind_SUB:
+    case AstNodeKind_LT:
+    case AstNodeKind_GT:
+    case AstNodeKind_EQ:
+    case AstNodeKind_AND:
+    case AstNodeKind_OR:
+        eval_res = eval_binary(
+            ast, node->kind, node->data.lhs, node->data.rhs, globals);
+        break;
 
     default:
         unreachable;
