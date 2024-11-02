@@ -79,6 +79,15 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
 }
 
 void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
+    GlobalVec globals = ir.globals;
+
+    for (uint32_t i = 0; i < globals.len; ++i) {
+        Global glbl = globals.elems[i];
+        PPRINT(indent, "g_%s: $%d", StrPool_get(&strs, glbl.name), glbl.value);
+    }
+
+    PPRINT(indent, "");
+
     FuncVec funcs = ir.funcs;
 
     for (uint32_t i = 0; i < funcs.len; i++) {
