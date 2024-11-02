@@ -31,7 +31,10 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_JMP:
         PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
         break;
-    case Op_JMP_CND:
+    case Op_JMP_IF_F:
+        PPRINT(indent + INDENT_SZ, "if !t%u then jmp .L%u", instr.a, instr.b);
+        break;
+    case Op_JMP_IF_T:
         PPRINT(indent + INDENT_SZ, "if t%u then jmp .L%u", instr.a, instr.b);
         break;
     case Op_CALL:
@@ -90,5 +93,7 @@ void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
         for (uint32_t j = 0; j < instrs.len; j++) {
             display_instr(instrs.elems[j], strs, indent + INDENT_SZ, stream);
         }
+
+        fprintf(stream, "\n");
     }
 }

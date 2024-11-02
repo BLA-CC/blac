@@ -51,7 +51,8 @@ static void tyck_report_misc(Location *loc, char *msg) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_const);
+static Type
+tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_const);
 
 static Type tyck_meth_call(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
     AstNode *node = &ast.nodes[idx];
@@ -87,12 +88,15 @@ static Type tyck_meth_call(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
 
     for (uint32_t i = 0; i < params_len; i++) {
         Type arg_type = tyck_expr(tyck, ast, strs, args.begin + i, false);
-        if (arg_type == Type_NONE) { return Type_NONE; }
+        if (arg_type == Type_NONE) {
+            return Type_NONE;
+        }
 
         Type param_type = ast.nodes[params.begin + i].data.lhs;
         if (arg_type != param_type) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[args.begin + i].loc, param_type, arg_type);
+            tyck_report_mismatch(
+                ast.nodes[args.begin + i].loc, param_type, arg_type);
             ret_type = Type_NONE;
         }
     }
@@ -100,14 +104,17 @@ static Type tyck_meth_call(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
     return ret_type;
 }
 
-static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_const) {
+static Type
+tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_const) {
     AstNode *node = &ast.nodes[idx];
 
     switch (node->kind) {
     case AstNodeKind_METH_CALL: {
         if (is_const) {
             tyck->had_error = true;
-            tyck_report_misc(&node->loc, "Cannot use runtime value to initialize a constant");
+            tyck_report_misc(
+                &node->loc,
+                "Cannot use runtime value to initialize a constant");
             return Type_NONE;
         }
         return tyck_meth_call(tyck, ast, strs, idx);
@@ -132,20 +139,26 @@ static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_co
         return sym_info->type_info.base;
     }
 
-    case AstNodeKind_INT_LIT: return Type_INT;
-    case AstNodeKind_BOOL_LIT: return Type_BOOL;
+    case AstNodeKind_INT_LIT:
+        return Type_INT;
+    case AstNodeKind_BOOL_LIT:
+        return Type_BOOL;
 
     case AstNodeKind_UNM:
     case AstNodeKind_NEG: {
         NodeIdx operand = node->data.lhs;
-        Type expected_type = node->kind == AstNodeKind_UNM ? Type_INT : Type_BOOL;
+        Type expected_type =
+            node->kind == AstNodeKind_UNM ? Type_INT : Type_BOOL;
 
         Type operand_type = tyck_expr(tyck, ast, strs, operand, is_const);
-        if (operand_type == Type_NONE) { return Type_NONE; }
+        if (operand_type == Type_NONE) {
+            return Type_NONE;
+        }
 
         if (operand_type != expected_type) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[operand].loc, expected_type, operand_type);
+            tyck_report_mismatch(
+                ast.nodes[operand].loc, expected_type, operand_type);
         }
 
         return operand_type;
@@ -165,7 +178,9 @@ static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_co
         NodeIdx rhs = node->data.rhs;
 
         Type lhs_type = tyck_expr(tyck, ast, strs, lhs, is_const);
-        if (lhs_type == Type_NONE) { return Type_NONE; }
+        if (lhs_type == Type_NONE) {
+            return Type_NONE;
+        }
 
         // == is overloaded on both basic types
         Type expected_type;
@@ -175,12 +190,15 @@ static Type tyck_expr(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx, bool is_co
             expected_type = node->kind <= AstNodeKind_GT ? Type_INT : Type_BOOL;
             if (lhs_type != expected_type) {
                 tyck->had_error = true;
-                tyck_report_mismatch(ast.nodes[lhs].loc, expected_type, lhs_type);
+                tyck_report_mismatch(
+                    ast.nodes[lhs].loc, expected_type, lhs_type);
             }
         }
 
         Type rhs_type = tyck_expr(tyck, ast, strs, rhs, is_const);
-        if (rhs_type == Type_NONE) { return Type_NONE; }
+        if (rhs_type == Type_NONE) {
+            return Type_NONE;
+        }
 
         if (rhs_type != expected_type) {
             tyck->had_error = true;
@@ -230,7 +248,8 @@ static bool tyck_stmt(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
         Type expr_type = tyck_expr(tyck, ast, strs, var_decl.init_expr, false);
         if (expr_type != Type_NONE && expr_type != var_decl.type) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[var_decl.init_expr].loc, var_decl.type, expr_type);
+            tyck_report_mismatch(
+                ast.nodes[var_decl.init_expr].loc, var_decl.type, expr_type);
         }
 
         return false;
@@ -256,7 +275,8 @@ static bool tyck_stmt(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
         Type expr_type = tyck_expr(tyck, ast, strs, asgn.expr, false);
         if (expr_type != Type_NONE && expr_type != sym_info->type_info.base) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[asgn.expr].loc, sym_info->type_info.base, expr_type);
+            tyck_report_mismatch(
+                ast.nodes[asgn.expr].loc, sym_info->type_info.base, expr_type);
         }
 
         return false;
@@ -288,7 +308,8 @@ static bool tyck_stmt(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
         Type cond_type = tyck_expr(tyck, ast, strs, whilee.cond, false);
         if (cond_type != Type_NONE && cond_type != Type_BOOL) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[whilee.cond].loc, Type_BOOL, cond_type);
+            tyck_report_mismatch(
+                ast.nodes[whilee.cond].loc, Type_BOOL, cond_type);
         }
 
         tyck_stmt(tyck, ast, strs, whilee.body);
@@ -303,11 +324,13 @@ static bool tyck_stmt(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
 
             if (expr_idx != Type_NONE && expr_type != tyck->ret_type) {
                 tyck->had_error = true;
-                tyck_report_mismatch(ast.nodes[expr_idx].loc, tyck->ret_type, expr_type);
+                tyck_report_mismatch(
+                    ast.nodes[expr_idx].loc, tyck->ret_type, expr_type);
             }
         } else if (tyck->ret_type != Type_VOID) {
             tyck->had_error = true;
-            tyck_report_mismatch(ast.nodes[expr_idx].loc, tyck->ret_type, Type_VOID);
+            tyck_report_mismatch(
+                ast.nodes[expr_idx].loc, tyck->ret_type, Type_VOID);
         }
 
         return true;
@@ -340,7 +363,8 @@ static void tyck_global_decl(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
     Type expr_type = tyck_expr(tyck, ast, strs, var_decl.init_expr, true);
     if (expr_type != Type_NONE && expr_type != var_decl.type) {
         tyck->had_error = true;
-        tyck_report_mismatch(ast.nodes[var_decl.init_expr].loc, var_decl.type, expr_type);
+        tyck_report_mismatch(
+            ast.nodes[var_decl.init_expr].loc, var_decl.type, expr_type);
     }
 }
 
@@ -365,17 +389,21 @@ static void tyck_meth_decl(Tyck *tyck, Ast ast, StrPool strs, NodeIdx idx) {
 
         if (params.end > params.begin) {
             tyck->had_error = true;
-            tyck_report_misc(&ast.nodes[idx].loc, "main method shouldn't have arguments");
+            tyck_report_misc(
+                &ast.nodes[idx].loc, "main method shouldn't have arguments");
         }
 
         if (meth_decl.body == NO_NODE) {
             tyck->had_error = true;
-            tyck_report_misc(&ast.nodes[idx].loc, "missing main method implementation");
+            tyck_report_misc(
+                &ast.nodes[idx].loc, "missing main method implementation");
         }
     }
 
     // Nothing to check if there is no body
-    if (meth_decl.body == NO_NODE) { return; }
+    if (meth_decl.body == NO_NODE) {
+        return;
+    }
 
     symtable_push_scope(&tyck->sym_table); // parameter scope
 

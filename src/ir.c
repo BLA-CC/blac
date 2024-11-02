@@ -103,48 +103,27 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
     case AstNodeKind_AND:
     case AstNodeKind_OR: {
+        NodeIdx lhs = node->data.lhs;
+        NodeIdx rhs = node->data.rhs;
         uint32_t label = ir_mk_label(ir_gen);
 
-        NodeIdx lhs = node->data.lhs;
         ir_gen_expr(ir_gen, ast, lhs);
-        IrVar expr_res = ir_gen->vstack_top;
-        IrVar jump_cnd = expr_res;
-
-        if (node->kind == AstNodeKind_AND) {
-            jump_cnd = ir_mk_var(ir_gen);
-            Instr not_instr = (Instr){
-                .op = Op_NEG,
-                .dst = jump_cnd,
-                .a = expr_res
-            };
-            InstrVec_push(&ir_gen->cur_func->instrs, not_instr);
-            ir_free_var(ir_gen, jump_cnd);
-        }
 
         Instr shrt_circuit_jmp = (Instr){
-            .op = Op_JMP_CND,
-            .a = jump_cnd,
+            .op = node->kind == AstNodeKind_AND ? Op_JMP_IF_F : Op_JMP_IF_T,
+            .a = ir_gen->vstack_top,
             .b = label,
         };
         InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_jmp);
 
-        NodeIdx rhs = node->data.rhs;
+        // If the result of the expression is NOT lhs, free its location and
+        // compute rhs there
+        ir_free_var(ir_gen, shrt_circuit_jmp.a);
+
         ir_gen_expr(ir_gen, ast, rhs);
 
-        Instr mov_res = (Instr){
-            .op = Op_MOV_VAR,
-            .a = ir_gen->vstack_top,
-            .dst = expr_res,
-        };
-        InstrVec_push(&ir_gen->cur_func->instrs, mov_res);
-        ir_free_var(ir_gen, mov_res.a);
-
-        Instr shrt_circuit_label = (Instr){
-            .op = Op_LABEL,
-            .a = label
-        };
+        Instr shrt_circuit_label = (Instr){ .op = Op_LABEL, .a = label };
         InstrVec_push(&ir_gen->cur_func->instrs, shrt_circuit_label);
-
     } break;
 
     default:
@@ -152,19 +131,22 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     }
 }
 
-static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
+static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNode *node = &ast.nodes[idx];
 
     switch (node->kind) {
     case AstNodeKind_BLOCK: {
         AstNodeFull_List block = Ast_full_block(ast, idx);
+        bool has_ret = false;
 
         symtable_push_scope(&ir_gen->sym_table);
-        for (NodeIdx i = block.begin; i < block.end; i++) {
-            ir_gen_stmt(ir_gen, ast, i);
+        for (NodeIdx i = block.begin; i < block.end && !has_ret; i++) {
+            has_ret = has_ret || ir_gen_stmt(ir_gen, ast, i);
         }
         symtable_pop_scope(&ir_gen->sym_table, &ir_gen->vstack_top);
-    } break;
+
+        return has_ret;
+    }
 
     case AstNodeKind_VAR_DECL_INIT: {
         AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, idx);
@@ -176,7 +158,9 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             var_decl.ident,
             (TypeInfo){ 0 },
             (IrInfo){ .loc = ir_gen->vstack_top });
-    } break;
+
+        return false;
+    }
 
     case AstNodeKind_ASGN: {
         AstNodeFull_Asgn asgn = Ast_full_asgn(ast, idx);
@@ -191,49 +175,59 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         InstrVec_push(&ir_gen->cur_func->instrs, mov_instr);
 
         ir_free_var(ir_gen, mov_instr.a);
-    } break;
+
+        return false;
+    }
 
     case AstNodeKind_IF_SMP:
     case AstNodeKind_IF_ALT: {
         AstNodeFull_If if_node = Ast_full_if(ast, idx);
 
         uint32_t l_end = ir_mk_label(ir_gen);
-        uint32_t l_if = ir_mk_label(ir_gen);
+        uint32_t l_else = ir_mk_label(ir_gen);
 
         ir_gen_expr(ir_gen, ast, if_node.cond);
 
-        Instr cnd_jump = (Instr) {
-            .op = Op_JMP_CND,
-            .a = ir_gen->vstack_top,
-            .b = l_if
-        };
-        ir_free_var(ir_gen, cnd_jump.a);
+        Instr cnd_jump =
+            (Instr) { .op = Op_JMP_IF_T, .a = ir_gen->vstack_top, .b = l_else };
         InstrVec_push(&ir_gen->cur_func->instrs, cnd_jump);
+        ir_free_var(ir_gen, cnd_jump.a);
 
+        bool then_has_ret = ir_gen_stmt(ir_gen, ast, if_node.then_b);
+        bool else_has_ret = false;
+        
         if (if_node.else_b != NO_NODE) {
-            ir_gen_stmt(ir_gen, ast, if_node.else_b);
+            if (!then_has_ret) {
+                InstrVec_push(
+                    &ir_gen->cur_func->instrs,
+                    (Instr){ .op = Op_JMP, .a = l_end });
+            }
+
+            InstrVec_push(
+                &ir_gen->cur_func->instrs,
+                (Instr){ .op = Op_LABEL, .a = l_else });
+
+            else_has_ret = ir_gen_stmt(ir_gen, ast, if_node.else_b);
+
+            if (!then_has_ret) {
+                InstrVec_push(
+                    &ir_gen->cur_func->instrs,
+                    (Instr){ .op = Op_LABEL, .a = l_end });
+            }
+        } else { // emit l_else, just to skip then_b
+            InstrVec_push(
+                    &ir_gen->cur_func->instrs,
+                    (Instr){ .op = Op_LABEL, .a = l_else});
         }
 
-        InstrVec_push(
-            &ir_gen->cur_func->instrs,
-            (Instr){ .op = Op_JMP, .a = l_end });
+        ir_gen_stmt(ir_gen, ast, if_node.then_b);
 
-        InstrVec_push(
-            &ir_gen->cur_func->instrs,
-            (Instr){ .op = Op_LABEL, .a = l_if });
-
-        if (if_node.then_b != NO_NODE) {
-            ir_gen_stmt(ir_gen, ast, if_node.then_b);
-        }
-
-        InstrVec_push(
-            &ir_gen->cur_func->instrs,
-            (Instr){ .op = Op_LABEL, .a = l_end });
-
-    } break;
+        return then_has_ret && else_has_ret;
+    }
 
     case AstNodeKind_WHILE: {
-    } break;
+        return false;
+    }
 
     case AstNodeKind_RET: {
         NodeIdx expr_idx = node->data.lhs;
@@ -245,10 +239,13 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             ir_free_var(ir_gen, ret_instr.a);
         }
         InstrVec_push(&ir_gen->cur_func->instrs, ret_instr);
-    } break;
+
+        return true;
+    }
 
     case AstNodeKind_METH_CALL: {
-    } break;
+        return false;
+    }
 
     default:
         unreachable;
@@ -256,10 +253,12 @@ static void ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 }
 
 static void ir_gen_meth_body(IrGen *ir_gen, Ast ast, NodeIdx idx) {
-    ir_gen_stmt(ir_gen, ast, idx);
+    bool has_ret = ir_gen_stmt(ir_gen, ast, idx);
 
-    Instr ret = (Instr){ .op = Op_RET, .a = 0 };
-    InstrVec_push(&ir_gen->cur_func->instrs, ret);
+    if (!has_ret) {
+        Instr ret = (Instr){ .op = Op_RET, .a = 0 };
+        InstrVec_push(&ir_gen->cur_func->instrs, ret);
+    }
 }
 
 static void ir_gen_meth_decl(IrGen *ir_gen, Ast ast, NodeIdx idx) {
