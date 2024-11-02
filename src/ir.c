@@ -1,12 +1,16 @@
 #include "ir.h"
+
+#include <stdint.h>
+
 #include "ast.h"
 #include "str_pool.h"
 #include "sym_table.h"
 #include "vec.h"
-#include <stdint.h>
+#include "consteval.h"
 
 Vec_Impl(Instr);
 Vec_Impl(Func);
+Vec_Impl(Global);
 
 void ir_new_func(IrGen *ir_gen) {
     Func new_func = { 0 };
@@ -189,13 +193,13 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         ir_gen_expr(ir_gen, ast, if_node.cond);
 
         Instr cnd_jump =
-            (Instr) { .op = Op_JMP_IF_T, .a = ir_gen->vstack_top, .b = l_else };
+            (Instr){ .op = Op_JMP_IF_T, .a = ir_gen->vstack_top, .b = l_else };
         InstrVec_push(&ir_gen->cur_func->instrs, cnd_jump);
         ir_free_var(ir_gen, cnd_jump.a);
 
         bool then_has_ret = ir_gen_stmt(ir_gen, ast, if_node.then_b);
         bool else_has_ret = false;
-        
+
         if (if_node.else_b != NO_NODE) {
             if (!then_has_ret) {
                 InstrVec_push(
@@ -216,8 +220,8 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             }
         } else { // emit l_else, just to skip then_b
             InstrVec_push(
-                    &ir_gen->cur_func->instrs,
-                    (Instr){ .op = Op_LABEL, .a = l_else});
+                &ir_gen->cur_func->instrs,
+                (Instr){ .op = Op_LABEL, .a = l_else });
         }
 
         ir_gen_stmt(ir_gen, ast, if_node.then_b);
@@ -298,6 +302,19 @@ static void ir_gen_meth_decl(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         &ir_gen->sym_table, &ir_gen->vstack_top); // parameter scope
 }
 
+static void ir_gen_global(IrGen *ir_gen, Ast ast, NodeIdx i) {
+    GlobalVec *globals = &ir_gen->ir.globals;
+    AstNodeFull_VarDecl var_init = Ast_full_var_decl(ast, i);
+
+    int32_t eval_result = consteval(ast, var_init.init_expr, globals);
+    Global data = {
+        .name = var_init.ident,
+        .value = eval_result,
+    };
+
+    GlobalVec_push(globals, data);
+}
+
 static void ir_gen_prog(IrGen *ir_gen, Ast ast) {
     AstNodeFull_List prog = Ast_full_prog(ast);
 
@@ -306,8 +323,7 @@ static void ir_gen_prog(IrGen *ir_gen, Ast ast) {
         switch (node->kind) {
         case AstNodeKind_VAR_DECL_INIT:
         case AstNodeKind_VAR_DECL:
-            /* TODO: ir_gen_global(ir_gen, ast, strs, i); */
-            panic("unimplemented (compile time evaluation)");
+            ir_gen_global(ir_gen, ast, i);
             break;
 
         case AstNodeKind_METH_DECL_IMPL:
