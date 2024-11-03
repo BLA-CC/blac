@@ -242,7 +242,29 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     }
 
     case AstNodeKind_WHILE: {
-        return false;
+        AstNodeFull_While while_node = Ast_full_while(ast, idx);
+
+        uint32_t l_test = ir_mk_label(ir_gen);
+        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_test });
+
+        ir_gen_expr(ir_gen, ast, while_node.cond);
+
+        uint32_t l_escape = ir_mk_label(ir_gen);
+
+        Instr cmd_escape = (Instr){ .op = Op_JMP_IF_F,
+                                    .a = ir_gen->vstack_top,
+                                    .b = l_escape };
+        ir_emit(ir_gen, cmd_escape);
+        ir_free_var(ir_gen, cmd_escape.a);
+
+        bool block_has_ret = ir_gen_stmt(ir_gen, ast, while_node.body);
+
+        Instr cmd_test = (Instr){ .op = Op_JMP, .a = l_test };
+        ir_emit(ir_gen, cmd_test);
+
+        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_escape });
+
+        return block_has_ret;
     }
 
     case AstNodeKind_RET: {
