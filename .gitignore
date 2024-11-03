@@ -1,8 +1,17 @@
+# binaries
 *.o
 c-tds
+tests/test
+
+# BLAC output files
+*.lex
+*.sint
+*.ir
+*.out
+
+# misc
 include/_parser.h
 include/_lexer.h
 src/parser.c
 src/lexer.c
-tests/test
 .vscode
