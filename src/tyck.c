@@ -394,11 +394,6 @@ static void tyck_meth_decl(Tyck *tyck, Ast ast, NodeIdx idx) {
         }
     }
 
-    // Nothing to check if there is no body
-    if (meth_decl.body == NO_NODE) {
-        return;
-    }
-
     symtable_push_scope(&tyck->sym_table); // parameter scope
 
     for (NodeIdx i = params.begin; i < params.end; i++) {
@@ -418,14 +413,15 @@ static void tyck_meth_decl(Tyck *tyck, Ast ast, NodeIdx idx) {
 
     tyck->ret_type = meth_decl.ret_type;
 
-    assert(ast.nodes[meth_decl.body].kind == AstNodeKind_BLOCK);
-
-    bool has_ret = tyck_stmt(tyck, ast, meth_decl.body);
-    if (meth_decl.ret_type != Type_VOID && !has_ret) {
-        tyck_report_misc(
-            tyck,
-            ast.nodes[idx].loc,
-            "non-void method does not return a value on all paths");
+    // Nothing to check if there is no body
+    if (meth_decl.body != NO_NODE) {
+        bool has_ret = tyck_stmt(tyck, ast, meth_decl.body);
+        if (meth_decl.ret_type != Type_VOID && !has_ret) {
+            tyck_report_misc(
+                tyck,
+                ast.nodes[idx].loc,
+                "non-void method does not return a value on all paths");
+        }
     }
 
     symtable_pop_scope(&tyck->sym_table, NULL); // parameter scope

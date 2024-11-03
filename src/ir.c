@@ -235,9 +235,6 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_else });
         }
 
-        // FIXME: multple genrations of THEN_B (see line 219), discuss this
-        // ir_gen_stmt(ir_gen, ast, if_node.then_b);
-
         return then_has_ret && else_has_ret;
     }
 
@@ -259,12 +256,14 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         bool block_has_ret = ir_gen_stmt(ir_gen, ast, while_node.body);
 
-        Instr cmd_test = (Instr){ .op = Op_JMP, .a = l_test };
-        ir_emit(ir_gen, cmd_test);
+        if (!block_has_ret) {
+            Instr cmd_test = (Instr){ .op = Op_JMP, .a = l_test };
+            ir_emit(ir_gen, cmd_test);
+        }
 
         ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_escape });
 
-        return block_has_ret;
+        return false;
     }
 
     case AstNodeKind_RET: {
