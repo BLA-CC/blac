@@ -8,16 +8,9 @@
 
 #include "argparse.h"
 
+#define TARGET_DEFAULT_STR "asm"
+
 typedef struct argparse Argparse;
-
-#define SET_DEFAULT_OPTION(opt, val)                                           \
-    if ((opt) == NULL) {                                                       \
-        opt = val;                                                             \
-    }
-
-static char *OUTPUT_DEFAULT = "a.out";
-static char *TARGET_DEFAULT = "asm";
-static char *OPTIMIZE_DEFAULT = "none";
 
 static const char *const usages[] = {
     "c-tds [options] input",
@@ -39,12 +32,7 @@ static _Noreturn void _die(Argparse *argparse, const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-static const char *
-_parse_input(Argparse *argparse, int argc, const char *argv[]) {
-    if (argc < 1) {
-        _die(argparse, "no input file");
-    }
-
+static const char *_parse_input(Argparse *argparse, const char *argv[]) {
     const char *format = strrchr(argv[0], '.');
 
     if (format == NULL) {
@@ -58,48 +46,67 @@ _parse_input(Argparse *argparse, int argc, const char *argv[]) {
     return argv[0];
 }
 
-static Target _parse_target(Argparse *argparse, const char *target) {
+static TargetFlags _parse_single_target(
+    Argparse *argparse,
+    const char *target) {
     if (strcmp(target, "scan") == 0) {
-        return Target_SCAN;
+        return TARGET_FLAG_SCAN;
     } else if (strcmp(target, "parse") == 0) {
-        return Target_PARSE;
+        return TARGET_FLAG_PARSE;
     } else if (strcmp(target, "ir") == 0) {
-        return Target_IR;
+        return TARGET_FLAG_IR;
     } else if (strcmp(target, "asm") == 0) {
-        return Target_ASM;
+        return TARGET_FLAG_ASM;
     }
 
     _die(argparse, "invalid target %s", target);
 }
 
-Args arg_parse(int argc, char *argv[]) {
-    Args self = { 0 };
+static TargetFlags _parse_targets(Argparse *argparse, const char *targets_str) {
+    TargetFlags targets = _parse_single_target(argparse, targets_str);
 
-    char *target = NULL;
+    return targets;
+}
+
+static const char *_parse_opts(Argparse *argparse, const char *opt) {
+    return opt;
+}
+
+Args arg_parse(int argc, const char *argv[]) {
+    bool debug = false;
+    const char *output = OUTPUT_DEFAULT;
+    const char *opt = OPTIMIZE_DEFAULT;
+    const char *targets = "asm";
 
     // clang-format off
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Compile options"),
-        OPT_STRING('o', "output", &self.output, "output file", NULL, 0, 0),
-        OPT_STRING('t', "target", &target, "scan|parse|ir|asm", NULL, 0, 0),
-        OPT_STRING('O', "optimize", &self.opt, "none|all", NULL, 0, 0),
-        OPT_BOOLEAN('d', "debug", &self.debug, "allow extra debug info", NULL, 0, 0),
+        OPT_STRING('o', "output", &output, "output file name", NULL, 0, 0),
+        OPT_STRING('t', "target", &targets, "at least one of scan|parse|ir|asm", NULL, 0, 0),
+        OPT_STRING('O', "optimize", &opt, "not yet implemented", NULL, 0, 0),
+        OPT_BOOLEAN('d', "debug", &debug, "allow extra debug info", NULL, 0, 0),
         OPT_END(),
     };
     // clang-format on
 
     Argparse argparse;
     argparse_init(&argparse, options, usages, 0);
-    argc = argparse_parse(&argparse, argc, (const char **)argv);
+    argc = argparse_parse(&argparse, argc, argv);
 
-    self.input = _parse_input(&argparse, argc, (const char **)argv);
+    if (argc < 1) {
+        _die(&argparse, "no input file");
+    }
 
-    SET_DEFAULT_OPTION(target, TARGET_DEFAULT);
-    self.target = _parse_target(&argparse, target);
-
-    SET_DEFAULT_OPTION(self.output, OUTPUT_DEFAULT);
-    SET_DEFAULT_OPTION(self.opt, OPTIMIZE_DEFAULT);
+    // clang-format off
+    Args self = {
+        .debug = debug,
+        .output = output,
+        .input = _parse_input(&argparse, argv),
+        .targets = _parse_targets(&argparse, targets),
+        .opt = _parse_opts(&argparse, opt),
+    };
+    // clang-format on
 
     return self;
 }
