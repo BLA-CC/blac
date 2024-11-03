@@ -212,7 +212,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         ir_gen_expr(ir_gen, ast, if_node.cond);
 
         Instr cnd_jump =
-            (Instr){ .op = Op_JMP_IF_T, .a = ir_gen->vstack_top, .b = l_else };
+            (Instr){ .op = Op_JMP_IF_F, .a = ir_gen->vstack_top, .b = l_else };
         ir_emit(ir_gen, cnd_jump);
         ir_free_var(ir_gen, cnd_jump.a);
 
@@ -235,7 +235,8 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = l_else });
         }
 
-        ir_gen_stmt(ir_gen, ast, if_node.then_b);
+        // FIXME: multple genrations of THEN_B (see line 219), discuss this
+        // ir_gen_stmt(ir_gen, ast, if_node.then_b);
 
         return then_has_ret && else_has_ret;
     }
