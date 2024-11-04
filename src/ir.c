@@ -8,6 +8,7 @@
 #include "vec.h"
 #include "consteval.h"
 
+Vec_Impl(IrVar);
 Vec_Impl(Instr);
 Vec_Impl(Func);
 Vec_Impl(Global);
@@ -41,11 +42,44 @@ static inline void ir_emit(IrGen *ir_gen, Instr instr) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx);
+
+static void ir_gen_meth_call(IrGen *ir_gen, Ast ast, NodeIdx idx, IrVar where) {
+    AstNodeFull_MethCall meth_call = Ast_full_meth_call(ast, idx);
+    uint32_t argc = meth_call.args_end - meth_call.args_begin;
+
+    // compile arguments into vector
+    // HACK: this is obviously unnecesary: arguments don't need to be saved
+    //       since they are in the last `argc` slots of the vstack.
+    //       However, this enables some sanity checks and future optimizations.
+    IrVarVec args = {0};
+    for (uint32_t i = meth_call.args_begin; i < meth_call.args_end; i++) {
+        ir_gen_expr(ir_gen, ast, i);
+        IrVarVec_push(&args, ir_gen->vstack_top);
+    }
+
+    // emit and free arguments
+    for (int32_t i = argc - 1; i >= 0; i--) {
+        ir_emit(ir_gen, (Instr){ .op = Op_ARG, .a = args.elems[i], .dst = i });
+        ir_free_var(ir_gen, args.elems[i]);
+    }
+
+    IrVarVec_free(&args);
+
+    // emit call into tmp
+    ir_emit(ir_gen, (Instr){ .op = Op_CALL,
+                             .a = meth_call.meth_ident,
+                             .b = argc,
+                             .dst = where });
+}
+
 static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNode *node = &ast.nodes[idx];
 
     switch (node->kind) {
     case AstNodeKind_METH_CALL: {
+        IrVar res = ir_mk_var(ir_gen);
+        ir_gen_meth_call(ir_gen, ast, idx, res);
     } break;
 
     case AstNodeKind_VAR: {
@@ -281,6 +315,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     }
 
     case AstNodeKind_METH_CALL: {
+        ir_gen_meth_call(ir_gen, ast, idx, 0);
         return false;
     }
 

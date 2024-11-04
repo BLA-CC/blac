@@ -12,6 +12,8 @@ extern "C" {
 
 typedef uint32_t IrVar;
 
+Vec_Proto(IrVar);
+
 typedef enum {
     Op_LABEL,      // .L{func}{a}:
     Op_MOV_LIT,    // v[dst] = a
