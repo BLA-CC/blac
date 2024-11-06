@@ -264,3 +264,19 @@ TEST_F(SempassTest, SampleProgram) {
         0);
     ASSERT_TRUE(TypeChecks(ast));
 }
+
+TEST_F(SempassTest, ReturnInAllPaths) {
+    Ast ast;
+    ASSERT_EQ(
+        ParseString(
+        "program {\n"
+        "   bool foo() {\n"
+        "       if (true) then {\n"
+        "           return true;\n"
+        "       }\n"
+        "   }\n"
+        "   void main() {}\n"
+        "}\n", ast),
+        0);
+    ASSERT_TRUE(!TypeChecks(ast));
+}
