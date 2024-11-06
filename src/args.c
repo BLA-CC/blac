@@ -73,7 +73,7 @@ static const char *_parse_opts(Argparse *argparse, const char *opt) {
 }
 
 Args arg_parse(int argc, const char *argv[]) {
-    bool debug = false;
+    int debug = 0;
     const char *output = OUTPUT_DEFAULT;
     const char *opt = OPTIMIZE_DEFAULT;
     const char *targets = "asm";
