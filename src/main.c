@@ -10,7 +10,7 @@
 #include "ir.h"
 
 int main(int argc, char *argv[]) {
-    Args args = arg_parse(argc, argv);
+    Args args = arg_parse(argc, (const char **)argv);
 
     StrPool strs = { 0 };
     Parser parser = { 0 };
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
     yyset_in(input_file, scanner);
 
-    if (args.target == Target_SCAN) {
+    if (args.targets & TARGET_FLAG_SCAN) {
         sprintf(out_filename, "%s.lex", args.input);
 
         FILE *output_file;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     Ast ast = Parser_mk_ast(&parser);
 
-    if (args.target == Target_PARSE) {
+    if (args.targets & TARGET_FLAG_PARSE) {
         sprintf(out_filename, "%s.sint", args.input);
 
         FILE *output_file;
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
 
     Ir ir = mk_ir(ast);
 
-    if (args.target == Target_IR) {
+    if (args.targets & TARGET_FLAG_IR) {
         sprintf(out_filename, "%s.ir", args.input);
 
         FILE *output_file;
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
         goto stage_ir_cleanup;
     }
 
-    if (args.target > Target_IR) {
+    if (args.targets > TARGET_FLAG_IR) {
         fprintf(stderr, "error: unimplemented stage\n");
         exit(EXIT_FAILURE);
     }
