@@ -202,9 +202,10 @@ TEST_F(ParserTest, ParseArithExpression) {
     ASSERT_EQ(var_decl.ident, StrPool_put(&str_pool, "x"));
     ASSERT_EQ(var_decl.type, Type_INT);
 
-    AstNodeFull_BinOp binop = Ast_full_binop(ast, var_decl.init_expr);
-    ASSERT_EQ(binop.op, BinOp_ADD);
-    ASSERT_EQ(Ast_full_binop(ast, binop.rhs).op, BinOp_MUL);
+    AstNode *binop = &ast.nodes[var_decl.init_expr];
+    ASSERT_EQ(binop->kind, AstNodeKind_ADD);
+    AstNode *rhs = &ast.nodes[binop->data.rhs];
+    ASSERT_EQ(rhs->kind, AstNodeKind_MUL);
 
     ASSERT_NE(
         ParseString("program { void f() { integer x = 10 + ; }}", ast), 0);
@@ -216,7 +217,8 @@ TEST_F(ParserTest, ParseBoolExpressions) {
     ASSERT_EQ(
         ParseString(" program { bool result = true && false; }\n", ast), 0);
 
-    AstNodeFull_BinOp binop = Ast_full_binop(
-        ast, Ast_full_var_decl(ast, Ast_full_prog(ast).begin).init_expr);
-    ASSERT_EQ(binop.op, BinOp_AND);
+    AstNodeFull_VarDecl var_decl =
+        Ast_full_var_decl(ast, Ast_full_prog(ast).begin);
+    AstNode *binop = &ast.nodes[var_decl.init_expr];
+    ASSERT_EQ(binop->kind, AstNodeKind_AND);
 }
