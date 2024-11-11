@@ -114,18 +114,3 @@ AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx) {
     };
 }
 
-AstNodeFull_UnOp Ast_full_unop(Ast ast, NodeIdx idx) {
-    assert(idx < ast.len);
-    AstNode *node = &ast.nodes[idx];
-    assert(node->kind == AstNodeKind_UNM || node->kind == AstNodeKind_NEG);
-    return (AstNodeFull_UnOp){ .arg = node->data.lhs, .op = (UnOp)node->kind };
-}
-
-AstNodeFull_BinOp Ast_full_binop(Ast ast, NodeIdx idx) {
-    assert(idx < ast.len);
-    AstNode *node = &ast.nodes[idx];
-    assert(node->kind >= AstNodeKind_MUL);
-    return (AstNodeFull_BinOp){ .lhs = node->data.lhs,
-                                .rhs = node->data.rhs,
-                                .op = (BinOp)node->kind };
-}

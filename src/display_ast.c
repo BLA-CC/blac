@@ -1,157 +1,270 @@
 #include "ast.h"
-#include "ast_visitor.h"
 #include "display.h"
 #include "str_pool.h"
 #include <stdio.h>
 
 #define PPRINT(fmt, ...)                                                       \
     fprintf(                                                                   \
-        ctx->stream,                                                           \
+        pp->stream,                                                            \
         "%*s" fmt,                                                             \
-        ctx->skip_indent ? (ctx->skip_indent = false, 1) : ctx->indent,        \
+        pp->do_indent ? pp->indent : (pp->do_indent = true, 1),                \
         "" __VA_OPT__(, ) __VA_ARGS__)
 
+#define PP_LIST(lo, hi, action)                                                \
+    do {                                                                       \
+        if (lo == hi) {                                                        \
+            PPRINT("[]\n");                                                    \
+        } else {                                                               \
+            PPRINT("[\n");                                                     \
+            INDENT;                                                            \
+            for (NodeIdx i = lo; i < hi; i++) {                                \
+                action                                                         \
+            }                                                                  \
+            DEDENT;                                                            \
+            PPRINT("]\n");                                                     \
+        }                                                                      \
+    } while (0)
+
 // clang-format off
-#define INDENT do { ctx->indent += INDENT_SZ; } while (0)
-#define DEDENT do { ctx->indent -= INDENT_SZ; } while (0)
-#define SKIP_INDENT do { ctx->skip_indent = true; } while (0)
+#define INDENT do { pp->indent += INDENT_SZ; } while (0)
+#define DEDENT do { pp->indent -= INDENT_SZ; } while (0)
+#define SKIP_INDENT do { pp->do_indent = false; } while (0)
 // clang-format on
 
-typedef struct PrintCtx {
+typedef struct Pp {
+    StrPool strs;
     FILE *stream;
     uint32_t indent;
-    bool skip_indent;
-} PrintCtx;
+    bool do_indent;
+} Pp;
 
-static const char *_str_un_op(UnOp op) {
+static const char *op2str(AstNodeKind op) {
     switch (op) {
-    case UnOp_NEG:
-        return "!";
-    case UnOp_UNM:
-        return "~";
+    case AstNodeKind_UNM: return "~";
+    case AstNodeKind_NEG: return "!";
+    case AstNodeKind_MUL: return "*";
+    case AstNodeKind_DIV: return "/";
+    case AstNodeKind_MOD: return "%";
+    case AstNodeKind_ADD: return "+";
+    case AstNodeKind_SUB: return "-";
+    case AstNodeKind_LT: return "<";
+    case AstNodeKind_GT: return ">";
+    case AstNodeKind_EQ: return "==";
+    case AstNodeKind_AND: return "&&";
+    case AstNodeKind_OR: return "||";
+    default: unreachable;
     }
-    return "INVALID";
 }
 
-static const char *_str_bin_op(BinOp op) {
-    switch (op) {
-    case BinOp_MUL:
-        return "*";
-
-    case BinOp_DIV:
-        return "/";
-
-    case BinOp_MOD:
-        return "%";
-
-    case BinOp_ADD:
-        return "+";
-
-    case BinOp_SUB:
-        return "-";
-
-    case BinOp_LT:
-        return "<";
-
-    case BinOp_GT:
-        return ">";
-
-    case BinOp_EQ:
-        return "==";
-
-    case BinOp_AND:
-        return "&&";
-
-    case BinOp_OR:
-        return "||";
-    }
-    return "INVALID";
-}
-
-const char *str_type(Type type) {
+const char *ty2str(Type type) {
     switch (type) {
-    case Type_VOID:
-        return "void";
-    case Type_INT:
-        return "integer";
-    case Type_BOOL:
-        return "bool";
-    default:
-        return "INVALID";
+    case Type_VOID: return "void";
+    case Type_INT: return "integer";
+    case Type_BOOL: return "bool";
+    default: unreachable;
     }
 }
 
-static const char *_str_bool(bool val) {
-    if (val) {
-        return "true";
-    } else {
-        return "false";
-    }
-}
+static void display_expr(Pp *pp, Ast ast, NodeIdx idx);
 
-void display_list(AstVisitor *v, NodeIdx begin, NodeIdx end) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
+static void display_meth_call(Pp *pp, Ast ast, NodeIdx idx) {
+    AstNodeFull_MethCall call = Ast_full_meth_call(ast, idx);
 
-    if (begin == end) {
-        PPRINT("[]\n");
-    } else {
-        PPRINT("[\n");
-        INDENT;
-        for (NodeIdx i = begin; i < end; i++) {
-            ast_visit(v, i);
-        }
-        DEDENT;
-        PPRINT("]\n");
-    }
-}
-
-void display_prog(AstVisitor *v, AstNodeFull_List prog_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(program:");
-    SKIP_INDENT;
-    display_list(v, prog_n.begin, prog_n.end);
-    PPRINT(")\n");
-}
-
-void display_block(AstVisitor *v, AstNodeFull_List block_n) {
-    display_list(v, block_n.begin, block_n.end);
-}
-
-void display_var_decl(AstVisitor *v, AstNodeFull_VarDecl var_decl_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
-
-    PPRINT("(var_decl:\n");
+    PPRINT("(meth_call:\n");
     INDENT;
-    PPRINT("type: %s\n", str_type(var_decl_n.type));
-    PPRINT("var: %s\n", StrPool_get(&strs, var_decl_n.ident));
-    if (var_decl_n.init_expr != NO_NODE) {
-        PPRINT("init_expr:");
-        SKIP_INDENT;
-        ast_visit(v, var_decl_n.init_expr);
-    }
+    PPRINT("meth: %s\n", StrPool_get(&pp->strs, call.meth_ident));
+    PPRINT("args:");
+    SKIP_INDENT;
+
+    PP_LIST(call.args_begin, call.args_end, display_expr(pp, ast, i););
+
     DEDENT;
     PPRINT(")\n");
 }
 
-void display_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
+static void display_expr(Pp *pp, Ast ast, NodeIdx idx) {
+    AstNode *node = &ast.nodes[idx];
+
+    switch (node->kind) {
+    case AstNodeKind_METH_CALL:
+        display_meth_call(pp, ast, idx);
+        break;
+
+    case AstNodeKind_VAR:
+        PPRINT("%s\n", StrPool_get(&pp->strs, node->data.lhs));
+        break;
+
+    case AstNodeKind_INT_LIT:
+        PPRINT("%d\n", node->data.lhs);
+        break;
+
+    case AstNodeKind_BOOL_LIT:
+        PPRINT("%s\n", node->data.lhs ? "true" : "false");
+        break;
+
+    case AstNodeKind_UNM:
+    case AstNodeKind_NEG:
+        PPRINT("(%s:", op2str(node->kind));
+        SKIP_INDENT;
+        display_expr(pp, ast, node->data.lhs);
+        PPRINT(")\n");
+        break;
+
+    case AstNodeKind_MUL:
+    case AstNodeKind_DIV:
+    case AstNodeKind_MOD:
+    case AstNodeKind_ADD:
+    case AstNodeKind_SUB:
+    case AstNodeKind_LT:
+    case AstNodeKind_GT:
+    case AstNodeKind_EQ:
+    case AstNodeKind_AND:
+    case AstNodeKind_OR:
+        PPRINT("(%s:\n", op2str(node->kind));
+        INDENT;
+        PPRINT("lhs:");
+        SKIP_INDENT;
+        display_expr(pp, ast, node->data.lhs);
+        PPRINT("rhs:");
+        SKIP_INDENT;
+        display_expr(pp, ast, node->data.rhs);
+        DEDENT;
+        PPRINT(")\n");
+        break;
+
+    default:
+        unreachable;
+    }
+}
+
+static void display_var_decl(Pp *pp, Ast ast, NodeIdx idx) {
+    AstNodeFull_VarDecl var_decl = Ast_full_var_decl(ast, idx);
+
+    PPRINT("(var_decl:\n");
+    INDENT;
+    PPRINT("type: %s\n", ty2str(var_decl.type));
+    PPRINT("var: %s\n", StrPool_get(&pp->strs, var_decl.ident));
+    PPRINT("init_expr:");
+    SKIP_INDENT;
+    display_expr(pp, ast, var_decl.init_expr);
+    DEDENT;
+    PPRINT(")\n");
+}
+
+static void display_stmt(Pp *pp, Ast ast, NodeIdx idx) {
+    AstNode *node = &ast.nodes[idx];
+
+    switch (node->kind) {
+    case AstNodeKind_BLOCK: {
+        AstNodeFull_List block = Ast_full_block(ast, idx);
+
+        PP_LIST(block.begin, block.end, display_stmt(pp, ast, i););
+    } break;
+
+    case AstNodeKind_VAR_DECL_INIT:
+        display_var_decl(pp, ast, idx);
+        break;
+
+    case AstNodeKind_ASGN: {
+        AstNodeFull_Asgn asgn = Ast_full_asgn(ast, idx);
+
+        PPRINT("(asgn:\n");
+        INDENT;
+        PPRINT("target: %s\n", StrPool_get(&pp->strs, asgn.target));
+        PPRINT("expr:");
+        SKIP_INDENT;
+        display_expr(pp, ast, asgn.expr);
+        DEDENT;
+        PPRINT(")\n");
+    } break;
+
+    case AstNodeKind_IF_SMP:
+    case AstNodeKind_IF_ALT: {
+        AstNodeFull_If iff = Ast_full_if(ast, idx);
+
+        PPRINT("(if:\n");
+        INDENT;
+        PPRINT("cond:");
+        SKIP_INDENT;
+        display_expr(pp, ast, iff.cond);
+        PPRINT("then:");
+        SKIP_INDENT;
+        display_stmt(pp, ast, iff.then_b);
+        if (iff.else_b != NO_NODE) {
+            PPRINT("else:");
+            SKIP_INDENT;
+            display_stmt(pp, ast, iff.else_b);
+        }
+        DEDENT;
+        PPRINT(")\n");
+    } break;
+
+    case AstNodeKind_WHILE: {
+        AstNodeFull_While whilee = Ast_full_while(ast, idx);
+            
+        PPRINT("(while:\n");
+        INDENT;
+        PPRINT("cond:");
+        SKIP_INDENT;
+        display_expr(pp, ast, whilee.cond);
+        PPRINT("body:");
+        SKIP_INDENT;
+        display_stmt(pp, ast, whilee.body);
+        DEDENT;
+        PPRINT(")\n");
+    } break;
+
+    case AstNodeKind_RET: {
+        NodeIdx ret_val = node->data.lhs;
+
+        PPRINT("(return:");
+        SKIP_INDENT;
+
+        if (node->data.lhs != NO_NODE) {
+            display_expr(pp, ast, ret_val);
+            PPRINT(")\n");
+        } else {
+            PPRINT("<no value>)\n");
+        }
+    } break;
+
+    case AstNodeKind_METH_CALL:
+        display_meth_call(pp, ast, idx);
+        break;
+
+    default:
+        unreachable;
+    }
+}
+
+static void display_meth_decl(Pp *pp, Ast ast, NodeIdx idx) {
+    AstNodeFull_MethDecl meth_decl = Ast_full_meth_decl(ast, idx);
 
     PPRINT("(meth_decl:\n");
     INDENT;
-    PPRINT("meth_name: %s\n", StrPool_get(&strs, meth_decl_n.ident));
-    PPRINT("ret_type: %s\n", str_type(meth_decl_n.ret_type));
-    PPRINT("params:");
-    AstNodeFull_List params = Ast_full_list(v->ast, meth_decl_n.params);
-    SKIP_INDENT;
-    display_list(v, params.begin, params.end);
-    PPRINT("body:");
 
+    PPRINT("meth_name: %s\n", StrPool_get(&pp->strs, meth_decl.ident));
+    PPRINT("ret_type: %s\n", ty2str(meth_decl.ret_type));
+    PPRINT("params:");
     SKIP_INDENT;
-    if (meth_decl_n.body != NO_NODE) {
-        ast_visit(v, meth_decl_n.body);
+
+    AstNodeFull_List params = Ast_full_list(ast, meth_decl.params);
+    PP_LIST(params.begin, params.end, {
+        AstNode *param = &ast.nodes[i];
+
+        PPRINT("(param:\n");
+        INDENT;
+        PPRINT("type: %s\n", ty2str(param->data.lhs));
+        PPRINT("ident: %s\n", StrPool_get(&pp->strs, param->data.rhs));
+        DEDENT;
+        PPRINT(")\n");
+    });
+
+    PPRINT("body:");
+    SKIP_INDENT;
+
+    if (meth_decl.body != NO_NODE) {
+        display_stmt(pp, ast, meth_decl.body);
     } else {
         PPRINT("extern\n");
     }
@@ -160,164 +273,34 @@ void display_meth_decl(AstVisitor *v, AstNodeFull_MethDecl meth_decl_n) {
     PPRINT(")\n");
 }
 
-void display_param(AstVisitor *v, Type type, StrIdx ident) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
+static void display_prog(Pp *pp, Ast ast) {
+    AstNodeFull_List prog = Ast_full_prog(ast);
 
-    PPRINT("(param:\n");
-    INDENT;
-    PPRINT("type: %s\n", str_type(type));
-    PPRINT("ident: %s\n", StrPool_get(&strs, ident));
-    DEDENT;
-    PPRINT(")\n");
-}
-
-void display_if(AstVisitor *v, AstNodeFull_If if_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(if:\n");
-    INDENT;
-    PPRINT("cond:");
-    SKIP_INDENT;
-    ast_visit(v, if_n.cond);
-    PPRINT("then:");
-    SKIP_INDENT;
-    ast_visit(v, if_n.then_b);
-    if (if_n.else_b != NO_NODE) {
-        PPRINT("else:");
-        SKIP_INDENT;
-        ast_visit(v, if_n.else_b);
-    }
-    DEDENT;
-    PPRINT(")\n");
-}
-
-void display_while(AstVisitor *v, AstNodeFull_While while_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(while:\n");
-    INDENT;
-    PPRINT("cond:");
-    SKIP_INDENT;
-    ast_visit(v, while_n.cond);
-    PPRINT("body:");
-    SKIP_INDENT;
-    ast_visit(v, while_n.body);
-    DEDENT;
-    PPRINT(")\n");
-}
-
-void display_ret(AstVisitor *v, NodeIdx expr_idx) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(return:");
+    PPRINT("(program:");
     SKIP_INDENT;
 
-    if (expr_idx != NO_NODE) {
-        ast_visit(v, expr_idx);
-        PPRINT(")\n");
-    } else {
-        PPRINT("<no value>)\n");
-    }
-}
+    PP_LIST(prog.begin, prog.end, {
+        AstNode *node = &ast.nodes[i];
+        switch (node->kind) {
+        case AstNodeKind_VAR_DECL_INIT:
+            display_var_decl(pp, ast, i);
+            break;
 
-void display_meth_call(AstVisitor *v, AstNodeFull_MethCall meth_call_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
+        case AstNodeKind_METH_DECL_IMPL:
+        case AstNodeKind_METH_DECL:
+            display_meth_decl(pp, ast, i);
+            break;
 
-    PPRINT("(meth_call:\n");
-    INDENT;
-    PPRINT("meth: %s\n", StrPool_get(&strs, meth_call_n.meth_ident));
-    PPRINT("args:");
-    SKIP_INDENT;
-    display_list(v, meth_call_n.args_begin, meth_call_n.args_end);
-    DEDENT;
-    PPRINT(")\n");
-}
+        default:
+            unreachable;
+        }
+    });
 
-void display_var(AstVisitor *v, StrIdx ident) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
-
-    PPRINT("%s\n", StrPool_get(&strs, ident));
-}
-
-void display_int_lit(AstVisitor *v, uint32_t val) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("%d\n", val);
-}
-
-void display_bool_lit(AstVisitor *v, bool val) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("%s\n", _str_bool(val));
-}
-
-void display_asgn(AstVisitor *v, AstNodeFull_Asgn asgn_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-    StrPool strs = v->strs;
-
-    PPRINT("(asgn:\n");
-    INDENT;
-    PPRINT("target: %s\n", StrPool_get(&strs, asgn_n.target));
-    PPRINT("expr:");
-    SKIP_INDENT;
-    ast_visit(v, asgn_n.expr);
-    DEDENT;
-    PPRINT(")\n");
-}
-
-void display_unop(AstVisitor *v, AstNodeFull_UnOp unop_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(%s:", _str_un_op(unop_n.op));
-    SKIP_INDENT;
-    ast_visit(v, unop_n.arg);
-    PPRINT(")\n");
-}
-
-void display_binop(AstVisitor *v, AstNodeFull_BinOp binop_n) {
-    PrintCtx *ctx = (PrintCtx *)v->ctx;
-
-    PPRINT("(%s:\n", _str_bin_op(binop_n.op));
-    INDENT;
-    PPRINT("lhs:");
-    SKIP_INDENT;
-    ast_visit(v, binop_n.lhs);
-    PPRINT("rhs:");
-    SKIP_INDENT;
-    ast_visit(v, binop_n.rhs);
-    DEDENT;
     PPRINT(")\n");
 }
 
 void display_ast(const Ast ast, StrPool strs, uint32_t indent, FILE *stream) {
-    PrintCtx ctx = { .stream = stream, .indent = indent };
+    Pp pp = { .strs = strs, .stream = stream, .indent = indent, .do_indent = true };
 
-    // clang-format off
-    AstVisitor visitor = (AstVisitor){
-        ast,
-        strs,
-        &ctx,
-        {0},
-        display_prog,
-        display_block,
-        display_var_decl,
-        display_meth_decl,
-        display_param,
-        display_asgn,
-        display_if,
-        display_while,
-        display_ret,
-        display_meth_call,
-        display_var,
-        display_int_lit,
-        display_bool_lit,
-        display_unop,
-        display_binop
-    };
-    // clang-format on
-
-    ast_visit(&visitor, AST_ROOT);
+    display_prog(&pp, ast);
 }

@@ -258,35 +258,6 @@ typedef struct {
     NodeIdx args_end;
 } AstNodeFull_MethCall;
 
-typedef enum {
-    UnOp_UNM = AstNodeKind_UNM,
-    UnOp_NEG,
-} UnOp;
-
-typedef struct {
-    NodeIdx arg;
-    UnOp op;
-} AstNodeFull_UnOp;
-
-typedef enum {
-    BinOp_MUL = AstNodeKind_MUL,
-    BinOp_DIV,
-    BinOp_MOD,
-    BinOp_ADD,
-    BinOp_SUB,
-    BinOp_LT,
-    BinOp_GT,
-    BinOp_EQ,
-    BinOp_AND,
-    BinOp_OR,
-} BinOp;
-
-typedef struct {
-    NodeIdx lhs;
-    NodeIdx rhs;
-    BinOp op;
-} AstNodeFull_BinOp;
-
 AstNodeFull_List Ast_full_prog(Ast ast);
 
 AstNodeFull_List Ast_full_block(Ast ast, NodeIdx idx);
@@ -304,10 +275,6 @@ AstNodeFull_If Ast_full_if(Ast ast, NodeIdx idx);
 AstNodeFull_While Ast_full_while(Ast ast, NodeIdx idx);
 
 AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx);
-
-AstNodeFull_UnOp Ast_full_unop(Ast ast, NodeIdx idx);
-
-AstNodeFull_BinOp Ast_full_binop(Ast ast, NodeIdx idx);
 
 #ifdef __cplusplus
 }

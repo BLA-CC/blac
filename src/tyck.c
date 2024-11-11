@@ -20,8 +20,8 @@ tyck_report_mismatch(Tyck *tyck, Location loc, Type expected, Type found) {
         "'%s'.\n",
         loc.line,
         loc.col,
-        str_type(expected),
-        str_type(found));
+        ty2str(expected),
+        ty2str(found));
 }
 
 static void tyck_report_double_decl(Tyck *tyck, Location loc, StrIdx ident) {
