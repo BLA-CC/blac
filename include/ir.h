@@ -10,9 +10,8 @@ extern "C" {
 #include "sym_table.h"
 #include "vec.h"
 
-typedef uint32_t IrVar;
-
-Vec_Proto(IrVar);
+typedef uint32_t IrLoc;
+typedef uint32_t IrLbl;
 
 typedef enum {
     Op_LABEL,      // .lbl[a]:
@@ -97,9 +96,9 @@ typedef struct {
 
 void ir_new_func(IrGen *ir_gen, StrIdx name, uint32_t arity);
 
-IrVar ir_mk_var(IrGen *ir_gen);
+IrLoc ir_mk_loc(IrGen *ir_gen);
 
-void ir_free_var(IrGen *ir_gen, IrVar v);
+void ir_free_loc(IrGen *ir_gen, IrLoc v);
 
 uint32_t ir_mk_label(IrGen *ir_gen);
 
