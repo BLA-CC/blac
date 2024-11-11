@@ -15,17 +15,16 @@ typedef uint32_t IrVar;
 Vec_Proto(IrVar);
 
 typedef enum {
-    Op_LABEL,      // .L{func}{a}:
+    Op_LABEL,      // .lbl[a]:
+    Op_MOV,        // v[dst] = v[a]
     Op_MOV_LIT,    // v[dst] = a
-    Op_MOV_VAR,    // v[dst] = v[a]
-    Op_RET,        // ret a
-    Op_JMP,        // goto .L{func}{a}
-    Op_JMP_IF_F,   // if !v[a] then goto b
-    Op_JMP_IF_T,   // if v[a] then goto b
-    Op_CALL,       // dst = f[a](n arguments)
-    Op_ARG,        // f[dst] = a
+
+    Op_SET_GLOBAL, // g[dst] = v[a]
+    Op_GET_GLOBAL, // v[dst] = g[a]
+
     Op_UNM,        // v[dst] = -v[a]
     Op_NEG,        // v[dst] = !v[a]
+
     Op_MUL,        // v[dst] = v[a] * v[b]
     Op_DIV,        // v[dst] = v[a] / v[b]
     Op_MOD,        // v[dst] = v[a] % v[b]
@@ -34,10 +33,27 @@ typedef enum {
     Op_LT,         // v[dst] = v[a] < v[b]
     Op_GT,         // v[dst] = v[a] > v[b]
     Op_EQ,         // v[dst] = v[a] == v[b]
-    Op_AND,        // v[dst] = v[a] & v[b]
-    Op_OR,         // v[dst] = v[a] | v[b]
-    Op_SET_GLOBAL, // g[dst] = v[a]
-    Op_GET_GLOBAL, // v[dst] = g[a]
+
+    Op_MUL_LIT,    // v[dst] = v[a] * b
+    Op_DIV_LIT,    // v[dst] = v[a] / b
+    Op_MOD_LIT,    // v[dst] = v[a] % b
+    Op_ADD_LIT,    // v[dst] = v[a] + b
+    Op_SUB_LIT,    // v[dst] = v[a] - b
+    Op_LT_LIT,     // v[dst] = v[a] < b
+    Op_GT_LIT,     // v[dst] = v[a] > b
+    Op_EQ_LIT,     // v[dst] = v[a] == b
+
+    Op_JMP,        // goto .L{func}{a}
+    Op_JMP_IF_F,   // if !v[a] then goto b
+    Op_JMP_IF_T,   // if v[a] then goto b
+
+    Op_CALL,       // dst = f[a](b arguments)
+
+    Op_ARG,        // arg[dst] = v[a]
+    Op_ARG_LIT,    // arg[dst] = a
+
+    Op_RET,        // ret v[a]
+    Op_RET_LIT,    // ret a
 } Op;
 
 typedef struct {
@@ -53,6 +69,7 @@ typedef struct {
     InstrVec instrs;
     StrIdx name;
     uint32_t locals;
+    uint32_t arity;
 } Func;
 
 Vec_Proto(Func);
@@ -78,7 +95,7 @@ typedef struct {
     SymTable sym_table;
 } IrGen;
 
-void ir_new_func(IrGen *ir_gen);
+void ir_new_func(IrGen *ir_gen, StrIdx name, uint32_t arity);
 
 IrVar ir_mk_var(IrGen *ir_gen);
 

@@ -11,7 +11,7 @@
 static const char *op_2_str[] = {
     [Op_UNM] = "unm", [Op_NEG] = "neg", [Op_MUL] = "mul", [Op_DIV] = "div",
     [Op_MOD] = "mod", [Op_ADD] = "add", [Op_SUB] = "sub", [Op_LT] = "lt",
-    [Op_GT] = "gt",   [Op_EQ] = "eq",   [Op_AND] = "and", [Op_OR] = "or",
+    [Op_GT] = "gt",   [Op_EQ] = "eq",
 };
 
 void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
@@ -19,14 +19,66 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_LABEL:
         PPRINT(indent, ".L%u", instr.a);
         break;
+    case Op_MOV:
+        PPRINT(indent + INDENT_SZ, "t%u := t%d", instr.dst, instr.a);
+        break;
     case Op_MOV_LIT:
         PPRINT(indent + INDENT_SZ, "t%u := $%d", instr.dst, instr.a);
         break;
-    case Op_MOV_VAR:
-        PPRINT(indent + INDENT_SZ, "t%u := t%d", instr.dst, instr.a);
+    case Op_SET_GLOBAL:
+        PPRINT(
+            indent + INDENT_SZ,
+            "G[%s] := t%u",
+            StrPool_get(&strs, instr.dst),
+            instr.a);
         break;
-    case Op_RET:
-        PPRINT(indent + INDENT_SZ, "ret t%u", instr.a);
+    case Op_GET_GLOBAL:
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := G[%s]",
+            instr.dst,
+            StrPool_get(&strs, instr.a));
+        break;
+    case Op_UNM:
+    case Op_NEG:
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := %s t%u",
+            instr.dst,
+            op_2_str[instr.op],
+            instr.a);
+        break;
+    case Op_MUL:
+    case Op_DIV:
+    case Op_MOD:
+    case Op_ADD:
+    case Op_SUB:
+    case Op_LT:
+    case Op_GT:
+    case Op_EQ:
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := %s t%u t%u",
+            instr.dst,
+            op_2_str[instr.op],
+            instr.a,
+            instr.b);
+        break;
+    case Op_MUL_LIT:
+    case Op_DIV_LIT:
+    case Op_MOD_LIT:
+    case Op_ADD_LIT:
+    case Op_SUB_LIT:
+    case Op_LT_LIT:
+    case Op_GT_LIT:
+    case Op_EQ_LIT:
+        PPRINT(
+            indent + INDENT_SZ,
+            "t%u := %s t%u $%d",
+            instr.dst,
+            op_2_str[instr.op - (Op_MUL_LIT - Op_MUL)],
+            instr.a,
+            instr.b);
         break;
     case Op_JMP:
         PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
@@ -48,46 +100,14 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_ARG:
         PPRINT(indent + INDENT_SZ, "arg[%u] := t%u", instr.dst, instr.a);
         break;
-    case Op_UNM:
-    case Op_NEG:
-        PPRINT(
-            indent + INDENT_SZ,
-            "t%u := %s t%u",
-            instr.dst,
-            op_2_str[instr.op],
-            instr.a);
+    case Op_ARG_LIT:
+        PPRINT(indent + INDENT_SZ, "arg[%u] := $%d", instr.dst, instr.a);
         break;
-    case Op_MUL:
-    case Op_DIV:
-    case Op_MOD:
-    case Op_ADD:
-    case Op_SUB:
-    case Op_LT:
-    case Op_GT:
-    case Op_EQ:
-    case Op_AND:
-    case Op_OR:
-        PPRINT(
-            indent + INDENT_SZ,
-            "t%u := %s t%u t%u",
-            instr.dst,
-            op_2_str[instr.op],
-            instr.a,
-            instr.b);
+    case Op_RET:
+        PPRINT(indent + INDENT_SZ, "ret t%u", instr.a);
         break;
-    case Op_SET_GLOBAL:
-        PPRINT(
-            indent + INDENT_SZ,
-            "g_%s := t%u",
-            StrPool_get(&strs, instr.dst),
-            instr.a);
-        break;
-    case Op_GET_GLOBAL:
-        PPRINT(
-            indent + INDENT_SZ,
-            "t%u := g_%s",
-            instr.dst,
-            StrPool_get(&strs, instr.a));
+    case Op_RET_LIT:
+        PPRINT(indent + INDENT_SZ, "ret $%u", instr.a);
         break;
     }
 }
@@ -95,10 +115,12 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
 void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
     GlobalVec globals = ir.globals;
 
+    PPRINT(indent, "G := {");
     for (uint32_t i = 0; i < globals.len; ++i) {
         Global glbl = globals.elems[i];
-        PPRINT(indent, "g_%s: $%d", StrPool_get(&strs, glbl.name), glbl.value);
+        PPRINT(indent + INDENT_SZ, "%s: $%d", StrPool_get(&strs, glbl.name), glbl.value);
     }
+    PPRINT(indent, "}");
 
     PPRINT(indent, "");
 
@@ -108,8 +130,9 @@ void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
         Func func = funcs.elems[i];
         PPRINT(
             indent,
-            "%s (%u locals)",
+            "%s (%u params, %u locals)",
             StrPool_get(&strs, func.name),
+            func.arity,
             func.locals);
 
         InstrVec instrs = func.instrs;

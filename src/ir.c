@@ -13,8 +13,8 @@ Vec_Impl(Instr);
 Vec_Impl(Func);
 Vec_Impl(Global);
 
-void ir_new_func(IrGen *ir_gen) {
-    Func new_func = { 0 };
+void ir_new_func(IrGen *ir_gen, StrIdx name, uint32_t arity) {
+    Func new_func = { .instrs = { 0 }, .name = name, .locals = 0, .arity = arity };
     FuncVec_push(&ir_gen->ir.funcs, new_func);
     ir_gen->cur_func = &ir_gen->ir.funcs.elems[ir_gen->ir.funcs.len - 1];
 }
@@ -317,7 +317,7 @@ static void ir_gen_meth_body(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     bool has_ret = ir_gen_stmt(ir_gen, ast, idx);
 
     if (!has_ret) {
-        ir_emit(ir_gen, (Instr){ .op = Op_RET, .a = 0 });
+        ir_emit(ir_gen, (Instr){ .op = Op_RET_LIT, .a = 0 });
     }
 }
 
@@ -328,10 +328,9 @@ static void ir_gen_meth_decl(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         return;
     }
 
-    ir_new_func(ir_gen);
-    ir_gen->cur_func->name = meth_decl.ident;
-
     AstNodeFull_List params = Ast_full_list(ast, meth_decl.params);
+
+    ir_new_func(ir_gen, meth_decl.ident, params.end - params.begin);
 
     symtable_push_scope(&ir_gen->sym_table); // parameter scope
 
@@ -379,10 +378,11 @@ static void ir_gen_prog(IrGen *ir_gen, Ast ast) {
             break;
 
         case AstNodeKind_METH_DECL_IMPL:
-        case AstNodeKind_METH_DECL:
             ir_gen_meth_decl(ir_gen, ast, i);
             break;
 
+        case AstNodeKind_METH_DECL:
+            break; // don't do anything for extern declarations
         default:
             unreachable;
         }
