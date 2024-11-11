@@ -90,7 +90,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrVar where) {
 
         Instr get_instr;
         if (sym_info != NULL) {
-            get_instr = (Instr){ .op = Op_MOV_VAR,
+            get_instr = (Instr){ .op = Op_MOV,
                                  .a = sym_info->ir_info.loc,
                                  .dst = where };
         } else { // global
@@ -168,7 +168,7 @@ static void ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrVar where) {
         ir_gen_expr(ir_gen, ast, rhs, tmp);
 
         ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = label });
-        ir_emit(ir_gen, (Instr){ .op = Op_MOV_VAR, .dst = where, .a = tmp });
+        ir_emit(ir_gen, (Instr){ .op = Op_MOV, .dst = where, .a = tmp });
         ir_free_var(ir_gen, tmp);
     } break;
 
