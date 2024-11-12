@@ -29,6 +29,6 @@ void display_ast(const Ast ast, StrPool strs, uint32_t indent, FILE *stream);
 // TODO: documentation
 void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream);
 
-const char *str_type(Type type);
+const char *ty2str(Type type);
 
 #endif // _DISPLAY_H

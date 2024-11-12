@@ -82,7 +82,7 @@ TEST_F(IrGenTest, SimpleProgram) {
     std::string expectedOutput =
         "G := {\n}\n\n"
         "main (0 params, 0 locals)\n"
-        "    ret t0\n\n";
+        "    ret $0\n\n";
 
     EXPECT_EQ(actualOutput, expectedOutput);
 }
@@ -134,14 +134,11 @@ TEST_F(IrGenTest, MethCall) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "foo (2 params, 3 locals)\n"
-        "    t3 := $1\n"
-        "    ret t3\n\n"
-        "main (0 params, 3 locals)\n"
-        "    t2 := $12\n"
-        "    t3 := $4\n"
-        "    arg[1] := t3\n"
-        "    arg[0] := t2\n"
+        "foo (2 params, 2 locals)\n"
+        "    ret $1\n\n"
+        "main (0 params, 1 locals)\n"
+        "    arg[1] := $4\n"
+        "    arg[0] := $12\n"
         "    t1 := call foo 2\n"
         "    ret t1\n\n";
 
@@ -166,22 +163,12 @@ TEST_F(IrGenTest, MethCallEvalInOrder) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "foo (3 params, 4 locals)\n"
-        "    t4 := $0\n"
-        "    ret t4\n\n"
-        "main (0 params, 4 locals)\n"
-        "    t2 := $1\n"
-        "    t1 := $2\n"
-        "    t1 := add t2 t1\n"
-        "    t3 := $3\n"
-        "    t2 := $4\n"
-        "    t2 := mul t3 t2\n"
-        "    t4 := $5\n"
-        "    t3 := $6\n"
-        "    t3 := div t4 t3\n"
-        "    arg[2] := t3\n"
-        "    arg[1] := t2\n"
-        "    arg[0] := t1\n"
+        "foo (3 params, 3 locals)\n"
+        "    ret $0\n\n"
+        "main (0 params, 0 locals)\n"
+        "    arg[2] := $0\n"
+        "    arg[1] := $12\n"
+        "    arg[0] := $3\n"
         "    t0 := call foo 3\n"
         "    ret $0\n\n";
 
@@ -205,17 +192,10 @@ TEST_F(IrGenTest, ArithExpr) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "main (0 params, 6 locals)\n"
+        "main (0 params, 3 locals)\n"
         "    t1 := $5\n"
-        "    t6 := $1\n"
-        "    t5 := $2\n"
-        "    t5 := add t6 t5\n"
-        "    t4 := $3\n"
-        "    t4 := mul t5 t4\n"
-        "    t3 := $4\n"
-        "    t3 := div t4 t3\n"
-        "    t2 := t1\n"
-        "    t2 := mod t3 t2\n"
+        "    t3 := $2\n"
+        "    t2 := mod t3 t1\n"
         "    ret $0\n\n";
 
     EXPECT_EQ(actualOutput, expectedOutput);
@@ -245,13 +225,11 @@ TEST_F(IrGenTest, IfElse) {
         "main (0 params, 1 locals)\n"
         "    t1 := $1\n"
         "    if !t1 then jmp .L1\n"
-        "    t1 := $0\n"
-        "    arg[0] := t1\n"
+        "    arg[0] := $0\n"
         "    t0 := call print 1\n"
         "    jmp .L0\n"
         "  .L1\n"
-        "    t1 := $1\n"
-        "    arg[0] := t1\n"
+        "    arg[0] := $1\n"
         "    t0 := call print 1\n"
         "  .L0\n"
         "    ret $0\n\n";
@@ -278,18 +256,13 @@ TEST_F(IrGenTest, While) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "main (0 params, 3 locals)\n"
+        "main (0 params, 2 locals)\n"
         "    t1 := $0\n"
         "  .L0\n"
-        "    t3 := t1\n"
-        "    t2 := $10\n"
-        "    t2 := lt t3 t2\n"
+        "    t2 := lt t1 $10\n"
         "    if !t2 then jmp .L1\n"
-        "    t2 := t1\n"
-        "    t1 := $1\n"
-        "    t1 := add t2 t1\n"
-        "    t2 := t1\n"
-        "    arg[0] := t2\n"
+        "    t1 := add t1 $1\n"
+        "    arg[0] := t1\n"
         "    t0 := call print 1\n"
         "    jmp .L0\n"
         "  .L1\n"
@@ -325,25 +298,19 @@ TEST_F(IrGenTest, ProgramExample) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "inc (1 params, 3 locals)\n"
-        "    t3 := t1\n"
-        "    t2 := $1\n"
-        "    t2 := add t3 t2\n"
+        "inc (1 params, 2 locals)\n"
+        "    t2 := add t1 $1\n"
         "    ret t2\n\n"
-        "main (0 params, 4 locals)\n"
+        "main (0 params, 3 locals)\n"
         "    t1 := $0\n"
         "    t1 := call get_int 0\n"
-        "    t3 := t1\n"
-        "    t2 := $1\n"
-        "    t2 := eq t3 t2\n"
+        "    t2 := eq t1 $1\n"
         "    if !t2 then jmp .L1\n"
-        "    t2 := t1\n"
-        "    arg[0] := t2\n"
+        "    arg[0] := t1\n"
         "    t0 := call print_int 1\n"
         "    jmp .L0\n"
         "  .L1\n"
-        "    t4 := t1\n"
-        "    arg[0] := t4\n"
+        "    arg[0] := t1\n"
         "    t3 := call inc 1\n"
         "    arg[0] := t3\n"
         "    t2 := call print_int 1\n"
