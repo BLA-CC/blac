@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "display.h"
 #include "ir.h"
+#include "asm.h"
 
 int main(int argc, char *argv[]) {
     Args args = arg_parse(argc, (const char **)argv);
@@ -94,9 +95,16 @@ int main(int argc, char *argv[]) {
         goto stage_ir_cleanup;
     }
 
-    if (args.targets > TARGET_FLAG_IR) {
-        fprintf(stderr, "error: unimplemented stage\n");
-        exit(EXIT_FAILURE);
+    if (args.targets & TARGET_FLAG_ASM) {
+        sprintf(out_filename, "%s.asm", args.input);
+
+        FILE *output_file;
+        if ((output_file = fopen(out_filename, "w")) == NULL) {
+            fprintf(stderr, "error: could not create output file\n");
+            exit(EXIT_FAILURE);
+        }
+        gen_asm(ir, strs, output_file);
+        fclose(output_file);
     }
 
 stage_ir_cleanup:
