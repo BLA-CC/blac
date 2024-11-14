@@ -14,6 +14,16 @@ typedef uint32_t IrLoc;
 typedef uint32_t IrLbl;
 
 typedef enum {
+    JmpCond_LT,
+    JmpCond_GT,
+    JmpCond_EQ,
+
+    JmpCond_GE,
+    JmpCond_LE,
+    JmpCond_NE,
+} JmpCond;
+
+typedef enum {
     Op_LABEL,      // .lbl[a]:
     Op_MOV,        // v[dst] = v[a]
     Op_MOV_LIT,    // v[dst] = a
@@ -29,22 +39,18 @@ typedef enum {
     Op_MOD,        // v[dst] = v[a] % v[b]
     Op_ADD,        // v[dst] = v[a] + v[b]
     Op_SUB,        // v[dst] = v[a] - v[b]
-    Op_LT,         // v[dst] = v[a] < v[b]
-    Op_GT,         // v[dst] = v[a] > v[b]
-    Op_EQ,         // v[dst] = v[a] == v[b]
 
     Op_MUL_LIT,    // v[dst] = v[a] * b
     Op_DIV_LIT,    // v[dst] = v[a] / b
     Op_MOD_LIT,    // v[dst] = v[a] % b
     Op_ADD_LIT,    // v[dst] = v[a] + b
     Op_SUB_LIT,    // v[dst] = v[a] - b
-    Op_LT_LIT,     // v[dst] = v[a] < b
-    Op_GT_LIT,     // v[dst] = v[a] > b
-    Op_EQ_LIT,     // v[dst] = v[a] == b
 
-    Op_JMP,        // goto .L{func}{a}
-    Op_JMP_IF_F,   // if !v[a] then goto b
-    Op_JMP_IF_T,   // if v[a] then goto b
+    Op_CMP,        // flags = v[a] <=> v[b]
+    Op_CMP_LIT,    // flags = v[a] <=> b
+
+    Op_JMP,        // goto lbl[a]
+    Op_JMP_IF,     // if flags == a then goto lbl[b]
 
     Op_CALL,       // dst = f[a](b arguments)
 
@@ -100,7 +106,7 @@ IrLoc ir_mk_loc(IrGen *ir_gen);
 
 void ir_free_loc(IrGen *ir_gen, IrLoc v);
 
-uint32_t ir_mk_label(IrGen *ir_gen);
+IrLbl ir_mk_lbl(IrGen *ir_gen);
 
 Ir mk_ir(const Ast ast);
 

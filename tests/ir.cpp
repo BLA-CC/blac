@@ -208,7 +208,8 @@ TEST_F(IrGenTest, IfElse) {
         "program {\n"
         "    void print(integer n) extern;\n"
         "    void main() {\n"
-        "        if (true) then {\n"
+        "        bool x = true;"
+        "        if (x) then {\n"
         "            print(0);\n"
         "        } else {\n"
         "            print(1);\n"
@@ -224,14 +225,16 @@ TEST_F(IrGenTest, IfElse) {
         
         "main (0 params, 1 locals)\n"
         "    t1 := $1\n"
-        "    if !t1 then jmp .L1\n"
+        "    cmp t1 $0\n"
+        "    if flags == eq then jmp .L1\n"
+        "  .L0\n"
         "    arg[0] := $0\n"
         "    t0 := call print 1\n"
-        "    jmp .L0\n"
+        "    jmp .L2\n"
         "  .L1\n"
         "    arg[0] := $1\n"
         "    t0 := call print 1\n"
-        "  .L0\n"
+        "  .L2\n"
         "    ret $0\n\n";
     EXPECT_EQ(actualOutput, expectedOutput);
 }
@@ -256,16 +259,17 @@ TEST_F(IrGenTest, While) {
 
     std::string expectedOutput =
         "G := {\n}\n\n"
-        "main (0 params, 2 locals)\n"
+        "main (0 params, 1 locals)\n"
         "    t1 := $0\n"
         "  .L0\n"
-        "    t2 := lt t1 $10\n"
-        "    if !t2 then jmp .L1\n"
+        "    cmp t1 $10\n"
+        "    if flags == ge then jmp .L2\n"
+        "  .L1\n"
         "    t1 := add t1 $1\n"
         "    arg[0] := t1\n"
         "    t0 := call print 1\n"
         "    jmp .L0\n"
-        "  .L1\n"
+        "  .L2\n"
         "    ret $0\n\n";
 
     EXPECT_EQ(actualOutput, expectedOutput);
@@ -304,18 +308,19 @@ TEST_F(IrGenTest, ProgramExample) {
         "main (0 params, 3 locals)\n"
         "    t1 := $0\n"
         "    t1 := call get_int 0\n"
-        "    t2 := eq t1 $1\n"
-        "    if !t2 then jmp .L1\n"
+        "    cmp t1 $1\n"
+        "    if flags == ne then jmp .L1\n"
+        "  .L0\n"
         "    arg[0] := t1\n"
         "    t0 := call print_int 1\n"
-        "    jmp .L0\n"
+        "    jmp .L2\n"
         "  .L1\n"
         "    arg[0] := t1\n"
         "    t3 := call inc 1\n"
         "    arg[0] := t3\n"
         "    t2 := call print_int 1\n"
         "    ret t2\n"
-        "  .L0\n"
+        "  .L2\n"
         "    ret $0\n\n";
 
     EXPECT_EQ(actualOutput, expectedOutput);

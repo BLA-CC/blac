@@ -10,8 +10,12 @@
 
 static const char *op_2_str[] = {
     [Op_UNM] = "unm", [Op_NEG] = "neg", [Op_MUL] = "mul", [Op_DIV] = "div",
-    [Op_MOD] = "mod", [Op_ADD] = "add", [Op_SUB] = "sub", [Op_LT] = "lt",
-    [Op_GT] = "gt",   [Op_EQ] = "eq",
+    [Op_MOD] = "mod", [Op_ADD] = "add", [Op_SUB] = "sub",
+};
+
+static const char *cond2str[] = {
+    [JmpCond_LT] = "lt", [JmpCond_GT] = "gt", [JmpCond_EQ] = "eq",
+    [JmpCond_GE] = "ge", [JmpCond_LE] = "le", [JmpCond_NE] = "ne",
 };
 
 void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
@@ -53,9 +57,6 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_MOD:
     case Op_ADD:
     case Op_SUB:
-    case Op_LT:
-    case Op_GT:
-    case Op_EQ:
         PPRINT(
             indent + INDENT_SZ,
             "t%u := %s t%u t%u",
@@ -69,9 +70,6 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     case Op_MOD_LIT:
     case Op_ADD_LIT:
     case Op_SUB_LIT:
-    case Op_LT_LIT:
-    case Op_GT_LIT:
-    case Op_EQ_LIT:
         PPRINT(
             indent + INDENT_SZ,
             "t%u := %s t%u $%d",
@@ -80,14 +78,21 @@ void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
             instr.a,
             instr.b);
         break;
+    case Op_CMP:
+        PPRINT(indent + INDENT_SZ, "cmp t%u t%u", instr.a, instr.b);
+        break;
+    case Op_CMP_LIT:
+        PPRINT(indent + INDENT_SZ, "cmp t%u $%d", instr.a, instr.b);
+        break;
     case Op_JMP:
         PPRINT(indent + INDENT_SZ, "jmp .L%u", instr.a);
         break;
-    case Op_JMP_IF_F:
-        PPRINT(indent + INDENT_SZ, "if !t%u then jmp .L%u", instr.a, instr.b);
-        break;
-    case Op_JMP_IF_T:
-        PPRINT(indent + INDENT_SZ, "if t%u then jmp .L%u", instr.a, instr.b);
+    case Op_JMP_IF:
+        PPRINT(
+            indent + INDENT_SZ,
+            "if flags == %s then jmp .L%u",
+            cond2str[instr.a],
+            instr.b);
         break;
     case Op_CALL:
         PPRINT(
