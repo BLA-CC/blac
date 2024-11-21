@@ -60,7 +60,9 @@ static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE
         fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
         break;
     case Op_MUL: // v[dst] = v[a] * v[b]
-        // TODO
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\timull %d(%%ebp), %%r10\n", var2offset(&func, instr.b));
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
         break;
     case Op_DIV: // v[dst] = v[a] / v[b]
         // TODO
@@ -81,7 +83,9 @@ static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE
         fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
         break;
     case Op_MUL_LIT: // v[dst] = v[a] * b
-        // TODO
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\timull $%d, %%r10, %%r11\n", instr.b);
+        fprintf(file, "\tmovl %%r11, %d(%%ebp)\n", var2offset(&func, instr.dst));
         break;
     case Op_DIV_LIT: // v[dst] = v[a] / b
         // TODO
