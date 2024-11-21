@@ -20,7 +20,7 @@ static const char *cond2str[] = {
 
 void display_instr(Instr instr, StrPool strs, uint32_t indent, FILE *stream) {
     switch (instr.op) {
-    case Op_LABEL:
+    case Op_LBL:
         PPRINT(indent, ".L%u", instr.a);
         break;
     case Op_MOV:
