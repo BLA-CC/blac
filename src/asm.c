@@ -202,6 +202,7 @@ static void gen_asm_globls(const GlobalVec globls, StrPool strs, FILE *file) {
 }
 
 static void gen_asm_funcs(const FuncVec funcs, StrPool strs, FILE *file) {
+    fprintf(file, "\t.text\n\t.globl main\n");
     for (uint32_t i = 0; i < funcs.len; i++) {
         gen_asm_func(funcs.elems[i], strs, file);
     }
@@ -211,7 +212,3 @@ void gen_asm(const Ir ir, StrPool strs, FILE *file) {
     gen_asm_globls(ir.globals, strs, file);
     gen_asm_funcs(ir.funcs, strs, file);
 }
-
-
-
-// TODO: main es globl
