@@ -12,6 +12,8 @@ Vec_Impl(Instr);
 Vec_Impl(Func);
 Vec_Impl(Global);
 
+/************************************ EMIT ************************************/
+
 void ir_new_func(IrGen *ir_gen, StrIdx name, uint32_t arity) {
     Func new_func = { .instrs = { 0 }, .name = name, .locals = 0, .arity = arity };
     FuncVec_push(&ir_gen->ir.funcs, new_func);
@@ -39,15 +41,25 @@ static inline void ir_emit(IrGen *ir_gen, Instr instr) {
     InstrVec_push(&ir_gen->cur_func->instrs, instr);
 }
 
+/************************************ EXPR ************************************/
+
 typedef struct IrExpr {
     enum { Ir_Tmp, Ir_Var, Ir_Lit } kind;
     int32_t val;
 } IrExpr;
 
-void ir_materialize_expr(IrGen *ir_gen, IrExpr *expr, IrLoc where) {
+static IrExpr ir_expr_new_with_loc(IrGen *ir_gen, IrLoc where) {
+    if (where != NEW_LOC) {
+        return (IrExpr){ .kind = Ir_Var, .val = where };
+    } else {
+        return (IrExpr){ .kind = Ir_Tmp, .val = ir_mk_loc(ir_gen) };
+    }
+}
+
+static void ir_expr_materialize(IrGen *ir_gen, IrExpr *expr, IrLoc where) {
     switch (expr->kind) {
     case Ir_Tmp: {
-        if (where != 0) {
+        if (where != NEW_LOC) {
             ir_emit(
                 ir_gen, (Instr){ .op = Op_MOV, .dst = where, .a = expr->val });
             ir_free_loc(ir_gen, expr->val);
@@ -57,7 +69,7 @@ void ir_materialize_expr(IrGen *ir_gen, IrExpr *expr, IrLoc where) {
     } break;
 
     case Ir_Var: {
-        if (where != 0 && where != expr->val) {
+        if (where != NEW_LOC && where != expr->val) {
             ir_emit(
                 ir_gen, (Instr){ .op = Op_MOV, .dst = where, .a = expr->val });
             expr->val = where;
@@ -65,7 +77,7 @@ void ir_materialize_expr(IrGen *ir_gen, IrExpr *expr, IrLoc where) {
     } break;
 
     case Ir_Lit: {
-        if (where == 0) {
+        if (where == NEW_LOC) {
             where = ir_mk_loc(ir_gen);
             expr->kind = Ir_Tmp;
         }
@@ -76,7 +88,7 @@ void ir_materialize_expr(IrGen *ir_gen, IrExpr *expr, IrLoc where) {
     }
 }
 
-static bool ir_use_expr(IrGen *ir_gen, IrExpr *expr) {
+static bool ir_expr_use(IrGen *ir_gen, IrExpr *expr) {
     if (expr->kind == Ir_Tmp) {
         ir_free_loc(ir_gen, expr->val);
     }
@@ -86,13 +98,7 @@ static bool ir_use_expr(IrGen *ir_gen, IrExpr *expr) {
 Vec_Proto(IrExpr);
 Vec_Impl(IrExpr);
 
-typedef enum {
-    IrTest_False = 0b01,
-    IrTest_True  = 0b10,
-    IrTest_Both  = 0b11,
-} IrTest;
-
-#define TEST_HAS(test, gen) (((test) & IrTest_##gen) != 0)
+/************************************ TEST ************************************/
 
 static JmpCond ir_cond_swap(JmpCond cond) {
     switch (cond) {
@@ -118,9 +124,17 @@ static JmpCond ir_cond_invert(JmpCond cond) {
     }
 }
 
+typedef enum {
+    IrTest_False = 0b01,
+    IrTest_True  = 0b10,
+    IrTest_Both  = 0b11,
+} IrTest;
+
+#define TEST_HAS(test, gen) (((test) & IrTest_##gen) != 0)
+
 typedef struct { IrLbl t, f, n; } IrCtrl;
 
-static void ir_emit_jmp(IrGen *ir_gen, JmpCond cond, IrCtrl ctrl) {
+static void ir_branch_materialize(IrGen *ir_gen, JmpCond cond, IrCtrl ctrl) {
     if (ctrl.f == ctrl.n) {
         ir_emit(ir_gen, (Instr){ .op = Op_JMP_IF, .a = cond, .b = ctrl.t });
     } else {
@@ -129,6 +143,36 @@ static void ir_emit_jmp(IrGen *ir_gen, JmpCond cond, IrCtrl ctrl) {
         if (ctrl.t != ctrl.n) {
             ir_emit(ir_gen, (Instr){ .op = Op_JMP, .a = ctrl.t });
         }
+    }
+}
+
+/************************************ FOLD ************************************/
+
+static IrTest ir_fold_test(AstNodeKind op, IrExpr lhs, IrExpr rhs) {
+    switch (op) {
+    case AstNodeKind_LT: return lhs.val < rhs.val ? IrTest_True : IrTest_False;
+    case AstNodeKind_GT: return lhs.val > rhs.val ? IrTest_True : IrTest_False;
+    case AstNodeKind_EQ: return lhs.val == rhs.val ? IrTest_True : IrTest_False;
+    default: unreachable;
+    }
+}
+
+static IrExpr ir_fold_expr_un(AstNodeKind op, IrExpr arg) {
+    switch (op) {
+    case AstNodeKind_UNM: return (IrExpr){ Ir_Lit, -arg.val };
+    case AstNodeKind_NEG: return (IrExpr){ Ir_Lit, !arg.val };
+    default: unreachable;
+    }
+}
+
+static IrExpr ir_fold_expr_bin(AstNodeKind op, IrExpr lhs, IrExpr rhs) {
+    switch (op) {
+    case AstNodeKind_MUL: return (IrExpr){ Ir_Lit, lhs.val * rhs.val };
+    case AstNodeKind_DIV: return (IrExpr){ Ir_Lit, lhs.val / rhs.val };
+    case AstNodeKind_MOD: return (IrExpr){ Ir_Lit, lhs.val % rhs.val };
+    case AstNodeKind_ADD: return (IrExpr){ Ir_Lit, lhs.val + rhs.val };
+    case AstNodeKind_SUB: return (IrExpr){ Ir_Lit, lhs.val - rhs.val };
+    default: unreachable;
     }
 }
 
@@ -142,11 +186,11 @@ static IrTest ir_gen_test(IrGen *ir_gen, Ast ast, NodeIdx idx, IrCtrl ctrl) {
     switch (node->kind) {
     case AstNodeKind_METH_CALL:
     case AstNodeKind_VAR: {
-        IrExpr test = ir_gen_expr(ir_gen, ast, idx, 0);
-        assert(!ir_use_expr(ir_gen, &test));
+        IrExpr test = ir_gen_expr(ir_gen, ast, idx, NEW_LOC);
+        assert(!ir_expr_use(ir_gen, &test));
 
         ir_emit(ir_gen, (Instr){ .op = Op_CMP_LIT, .a = test.val, .b = 0 });
-        ir_emit_jmp(ir_gen, JmpCond_NE, ctrl);
+        ir_branch_materialize(ir_gen, JmpCond_NE, ctrl);
 
         return IrTest_Both;
     }
@@ -168,38 +212,33 @@ static IrTest ir_gen_test(IrGen *ir_gen, Ast ast, NodeIdx idx, IrCtrl ctrl) {
     case AstNodeKind_LT:
     case AstNodeKind_GT: 
     case AstNodeKind_EQ: {
-        IrExpr lhs = ir_gen_expr(ir_gen, ast, node->data.lhs, 0);
-        IrExpr rhs = ir_gen_expr(ir_gen, ast, node->data.rhs, 0);
+        IrExpr lhs = ir_gen_expr(ir_gen, ast, node->data.lhs, NEW_LOC);
+        IrExpr rhs = ir_gen_expr(ir_gen, ast, node->data.rhs, NEW_LOC);
 
-        if (lhs.kind == Ir_Lit && rhs.kind == Ir_Lit) { // fold
-            switch (node->kind) {
-            case AstNodeKind_LT: return lhs.val < rhs.val ? IrTest_True : IrTest_False;
-            case AstNodeKind_GT: return lhs.val > rhs.val ? IrTest_True : IrTest_False;
-            case AstNodeKind_EQ: return lhs.val == rhs.val? IrTest_True : IrTest_False;
-            default: unreachable;
-            }
-        } else { // compare
-            JmpCond cond = node->kind - (AstNodeKind_LT - JmpCond_LT);
-
-            if (lhs.kind == Ir_Lit) { // swap operands and reverse cond
-                IrExpr tmp = lhs;
-                lhs = rhs;
-                rhs = tmp;
-
-                cond = ir_cond_swap(cond);
-            }
-
-            ir_materialize_expr(ir_gen, &lhs, 0);
-            bool use_lit_op = ir_use_expr(ir_gen, &rhs);
-
-            assert(!ir_use_expr(ir_gen, &lhs));
-
-            Op op = use_lit_op ? Op_CMP_LIT : Op_CMP;
-            ir_emit(ir_gen, (Instr){ .op = op, .a = lhs.val, .b = rhs.val });
-            ir_emit_jmp(ir_gen, cond, ctrl);
-
-            return IrTest_Both;
+        if (lhs.kind == Ir_Lit && rhs.kind == Ir_Lit) {
+            return ir_fold_test(node->kind, lhs, rhs);
         }
+
+        JmpCond cond = node->kind - (AstNodeKind_LT - JmpCond_LT);
+
+        if (lhs.kind == Ir_Lit) { // swap operands and reverse cond
+            IrExpr tmp = lhs;
+            lhs = rhs;
+            rhs = tmp;
+
+            cond = ir_cond_swap(cond);
+        }
+
+        ir_expr_materialize(ir_gen, &lhs, NEW_LOC);
+        bool use_lit_op = ir_expr_use(ir_gen, &rhs);
+
+        assert(!ir_expr_use(ir_gen, &lhs));
+
+        Op op = use_lit_op ? Op_CMP_LIT : Op_CMP;
+        ir_emit(ir_gen, (Instr){ .op = op, .a = lhs.val, .b = rhs.val });
+        ir_branch_materialize(ir_gen, cond, ctrl);
+
+        return IrTest_Both;
     }
 
     case AstNodeKind_AND: {
@@ -212,7 +251,7 @@ static IrTest ir_gen_test(IrGen *ir_gen, Ast ast, NodeIdx idx, IrCtrl ctrl) {
 
         if (lhs == IrTest_False) { return IrTest_False; }
 
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = lbl });
 
         IrTest rhs = ir_gen_test(ir_gen, ast, node->data.lhs, ctrl);
 
@@ -233,7 +272,7 @@ static IrTest ir_gen_test(IrGen *ir_gen, Ast ast, NodeIdx idx, IrCtrl ctrl) {
 
         if (lhs == IrTest_True) { return IrTest_True; }
 
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = lbl });
 
         IrTest rhs = ir_gen_test(ir_gen, ast, node->data.lhs, ctrl);
 
@@ -256,13 +295,13 @@ static void ir_gen_meth_call(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc dst) {
     // compile arguments into vector
     IrExprVec args = { 0 };
     for (uint32_t i = meth_call.args_begin; i < meth_call.args_end; i++) {
-        IrExpr arg = ir_gen_expr(ir_gen, ast, i, 0);
+        IrExpr arg = ir_gen_expr(ir_gen, ast, i, NEW_LOC);
         IrExprVec_push(&args, arg);
     }
 
     // emit and free arguments
     for (int32_t i = argc - 1; i >= 0; i--) {
-        Op op = ir_use_expr(ir_gen, &args.elems[i]) ? Op_ARG_LIT : Op_ARG;
+        Op op = ir_expr_use(ir_gen, &args.elems[i]) ? Op_ARG_LIT : Op_ARG;
         ir_emit(ir_gen, (Instr){ .op = op, .a = args.elems[i].val, .dst = i });
     }
 
@@ -277,15 +316,15 @@ static void ir_gen_meth_call(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc dst) {
                  .dst = dst });
 }
 
-static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc can_dst) {
+static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc where) {
     AstNode *node = &ast.nodes[idx];
 
     switch (node->kind) {
     case AstNodeKind_METH_CALL: {
-        IrLoc dst = can_dst == 0 ? ir_mk_loc(ir_gen) : can_dst;
-        ir_gen_meth_call(ir_gen, ast, idx, dst);
+        IrExpr dst = ir_expr_new_with_loc(ir_gen, where);
+        ir_gen_meth_call(ir_gen, ast, idx, dst.val);
 
-        return (IrExpr){ .kind = can_dst == 0 ? Ir_Tmp : Ir_Var, .val = dst };
+        return dst;
     }
 
     case AstNodeKind_VAR: {
@@ -293,10 +332,10 @@ static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc can_dst) {
         SymInfo *sym_info = symtable_get_symbol(&ir_gen->sym_table, ident);
 
         if (sym_info == NULL) { // global
-            IrLoc dst = can_dst == 0 ? ir_mk_loc(ir_gen) : can_dst;
-            ir_emit(ir_gen, (Instr){ .op = Op_GET_GLOBAL, .a = ident, .dst = dst });
+            IrExpr res = ir_expr_new_with_loc(ir_gen, where);
+            ir_emit(ir_gen, (Instr){ .op = Op_GET_GLOBAL, .a = ident, .dst = res.val });
 
-            return (IrExpr){ .kind = can_dst == 0 ? Ir_Tmp : Ir_Var, .val = dst };
+            return res;
         } else { // local
             return (IrExpr){ .kind = Ir_Var, .val = sym_info->ir_info.loc };
         }
@@ -308,29 +347,23 @@ static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc can_dst) {
 
     case AstNodeKind_UNM:
     case AstNodeKind_NEG: {
-        IrExpr operand = ir_gen_expr(ir_gen, ast, node->data.lhs, can_dst);
+        IrExpr operand = ir_gen_expr(ir_gen, ast, node->data.lhs, where);
 
-        if (operand.kind == Ir_Lit) { // fold
-            switch (node->kind) {
-            case AstNodeKind_UNM: operand.val = -operand.val; break;
-            case AstNodeKind_NEG: operand.val = !operand.val; break;
-            default: unreachable;
-            }
-
-            return operand;
-        } else { // emit
-            assert(!ir_use_expr(ir_gen, &operand));
-
-            IrLoc dst = can_dst == 0 ? ir_mk_loc(ir_gen) : can_dst;
-            ir_emit(
-                ir_gen,
-                (Instr){ // HACK: this is awesome.
-                        .op = node->kind - (AstNodeKind_UNM - Op_UNM),
-                        .a = operand.val,
-                        .dst = dst });
-
-            return (IrExpr){ .kind = can_dst == 0 ? Ir_Tmp : Ir_Var, .val = dst };
+        if (operand.kind == Ir_Lit) {
+            return ir_fold_expr_un(node->kind, operand);
         }
+
+        assert(!ir_expr_use(ir_gen, &operand));
+
+        IrExpr res = ir_expr_new_with_loc(ir_gen, where);
+        ir_emit(
+            ir_gen,
+            (Instr){ // HACK: this is awesome.
+                    .op = node->kind - (AstNodeKind_UNM - Op_UNM),
+                    .a = operand.val,
+                    .dst = res.val });
+
+        return res;
     }
 
     case AstNodeKind_MUL:
@@ -338,43 +371,34 @@ static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc can_dst) {
     case AstNodeKind_MOD:
     case AstNodeKind_ADD:
     case AstNodeKind_SUB: {
-        IrExpr lhs = ir_gen_expr(ir_gen, ast, node->data.lhs, 0);
-        IrExpr rhs = ir_gen_expr(ir_gen, ast, node->data.rhs, 0);
+        IrExpr lhs = ir_gen_expr(ir_gen, ast, node->data.lhs, NEW_LOC);
+        IrExpr rhs = ir_gen_expr(ir_gen, ast, node->data.rhs, NEW_LOC);
 
-        if (lhs.kind == Ir_Lit && rhs.kind == Ir_Lit) { // fold
-            switch (node->kind) {
-            case AstNodeKind_MUL: lhs.val *= rhs.val; break;
-            case AstNodeKind_DIV: lhs.val /= rhs.val; break;
-            case AstNodeKind_MOD: lhs.val %= rhs.val; break;
-            case AstNodeKind_ADD: lhs.val += rhs.val; break;
-            case AstNodeKind_SUB: lhs.val -= rhs.val; break;
-            default: unreachable;
-            }
-
-            return lhs;
-        } else { // emit
-            // swap if lhs is lit and op commutes
-            if (lhs.kind == Ir_Lit &&
-                (node->kind == AstNodeKind_MUL || node->kind == AstNodeKind_ADD)) {
-                    IrExpr tmp = lhs;
-                    lhs = rhs;
-                    rhs = tmp;
-            }
-
-            ir_materialize_expr(ir_gen, &lhs, 0);
-            bool use_lit_op = ir_use_expr(ir_gen, &rhs);
-
-            assert(!ir_use_expr(ir_gen, &lhs));
-
-            IrLoc dst = can_dst == 0 ? ir_mk_loc(ir_gen) : can_dst;
-            Op op = node->kind - (AstNodeKind_MUL - Op_MUL);
-            op += use_lit_op ? Op_MUL_LIT - Op_MUL : 0;
-
-            ir_emit(
-                ir_gen, (Instr){ .op = op, .a = lhs.val, .b = rhs.val, .dst = dst});
-
-            return (IrExpr){ .kind = can_dst == 0 ? Ir_Tmp : Ir_Var, .val = dst };
+        if (lhs.kind == Ir_Lit && rhs.kind == Ir_Lit) {
+            return ir_fold_expr_bin(node->kind, lhs, rhs);
         }
+
+        // swap if lhs is lit and op commutes
+        if (lhs.kind == Ir_Lit &&
+            (node->kind == AstNodeKind_MUL || node->kind == AstNodeKind_ADD)) {
+                IrExpr tmp = lhs;
+                lhs = rhs;
+                rhs = tmp;
+        }
+
+        ir_expr_materialize(ir_gen, &lhs, NEW_LOC);
+        bool use_lit_op = ir_expr_use(ir_gen, &rhs);
+
+        assert(!ir_expr_use(ir_gen, &lhs));
+
+        IrExpr res = ir_expr_new_with_loc(ir_gen, where);
+        Op op = node->kind - (AstNodeKind_MUL - Op_MUL);
+        op += use_lit_op ? Op_MUL_LIT - Op_MUL : 0;
+
+        ir_emit(
+            ir_gen, (Instr){ .op = op, .a = lhs.val, .b = rhs.val, .dst = res.val });
+
+        return res;
     }
 
     case AstNodeKind_AND:
@@ -392,25 +416,25 @@ static IrExpr ir_gen_expr(IrGen *ir_gen, Ast ast, NodeIdx idx, IrLoc can_dst) {
                 (IrCtrl){ .t = t_lbl, .f = f_lbl, .n = f_lbl });
 
         if (test == IrTest_False) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = f_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = f_lbl });
             return (IrExpr){ .kind = Ir_Lit, .val = false };
         }
         if (test == IrTest_True) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = t_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = t_lbl });
             return (IrExpr){ .kind = Ir_Lit, .val = true };
         }
 
-        IrLoc dst = can_dst == 0 ? ir_mk_loc(ir_gen) : can_dst;
+        IrExpr res = ir_expr_new_with_loc(ir_gen, where);
 
         // TODO: cmov
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = f_lbl });
-        ir_emit(ir_gen, (Instr){ .op = Op_MOV_LIT, .a = false, .dst = dst});
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = f_lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_MOV_LIT, .a = false, .dst = res.val });
         ir_emit(ir_gen, (Instr){ .op = Op_JMP, .a = end_lbl });
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = t_lbl });
-        ir_emit(ir_gen, (Instr){ .op = Op_MOV_LIT, .a = true, .dst = dst});
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = end_lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = t_lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_MOV_LIT, .a = true, .dst = res.val });
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = end_lbl });
 
-        return (IrExpr){ .kind = can_dst == 0 ? Ir_Tmp : Ir_Var, .val = dst };
+        return res;
     }
 
     default:
@@ -440,7 +464,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
         IrLoc where = ir_mk_loc(ir_gen);
         IrExpr expr = ir_gen_expr(ir_gen, ast, var_decl.init_expr, where);
-        ir_materialize_expr(ir_gen, &expr, where);
+        ir_expr_materialize(ir_gen, &expr, where);
 
         symtable_put_symbol(
             &ir_gen->sym_table,
@@ -457,15 +481,15 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             symtable_get_symbol(&ir_gen->sym_table, asgn.target);
 
         IrLoc where =
-            sym_info == NULL ? ir_mk_loc(ir_gen) : sym_info->ir_info.loc;
+            sym_info == NULL ? NEW_LOC : sym_info->ir_info.loc;
         IrExpr expr = ir_gen_expr(ir_gen, ast, asgn.expr, where);
-        ir_materialize_expr(ir_gen, &expr, where);
+        ir_expr_materialize(ir_gen, &expr, where);
 
         if (sym_info == NULL) { // global
-            ir_use_expr(ir_gen, &expr);
+            ir_expr_use(ir_gen, &expr);
             ir_emit(
                 ir_gen,
-                (Instr){ .op = Op_SET_GLOBAL, .a = where, .dst = asgn.target });
+                (Instr){ .op = Op_SET_GLOBAL, .a = expr.val, .dst = asgn.target });
         }
 
         return false;
@@ -488,7 +512,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         bool else_has_ret = !TEST_HAS(test, False);
 
         if (TEST_HAS(test, True)) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = t_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = t_lbl });
             then_has_ret = ir_gen_stmt(ir_gen, ast, if_node.then_b);
         }
 
@@ -497,7 +521,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
 
         if (TEST_HAS(test, False)) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = f_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = f_lbl });
 
             if (if_node.else_b != NO_NODE) {
                 else_has_ret = ir_gen_stmt(ir_gen, ast, if_node.else_b);
@@ -505,7 +529,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
 
         if (TEST_HAS(test, Both) && if_node.else_b != NO_NODE && !then_has_ret) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = end_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = end_lbl });
         }
 
         return then_has_ret && else_has_ret;
@@ -518,7 +542,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         IrLbl t_lbl = ir_mk_lbl(ir_gen);
         IrLbl f_lbl = ir_mk_lbl(ir_gen);
 
-        ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = header_lbl });
+        ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = header_lbl });
 
         IrTest test =
             ir_gen_test(
@@ -526,7 +550,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
                 (IrCtrl){ .t = t_lbl, .f = f_lbl, .n = t_lbl });
 
         if (TEST_HAS(test, True)) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = t_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = t_lbl });
 
             bool body_has_ret = ir_gen_stmt(ir_gen, ast, while_node.body);
             if (!body_has_ret) {
@@ -535,7 +559,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
         }
 
         if (TEST_HAS(test, False)) {
-            ir_emit(ir_gen, (Instr){ .op = Op_LABEL, .a = f_lbl });
+            ir_emit(ir_gen, (Instr){ .op = Op_LBL, .a = f_lbl });
         }
 
         return !TEST_HAS(test, False);
@@ -549,7 +573,7 @@ static bool ir_gen_stmt(IrGen *ir_gen, Ast ast, NodeIdx idx) {
             ret_val = ir_gen_expr(ir_gen, ast, expr_idx, 0);
         }
 
-        if (ir_use_expr(ir_gen, &ret_val)) {
+        if (ir_expr_use(ir_gen, &ret_val)) {
             ir_emit(ir_gen, (Instr){ .op = Op_RET_LIT, .a = ret_val.val });
         } else {
             ir_emit(ir_gen, (Instr){ .op = Op_RET, .a = ret_val.val });
@@ -578,10 +602,6 @@ static void ir_gen_meth_body(IrGen *ir_gen, Ast ast, NodeIdx idx) {
 
 static void ir_gen_meth_decl(IrGen *ir_gen, Ast ast, NodeIdx idx) {
     AstNodeFull_MethDecl meth_decl = Ast_full_meth_decl(ast, idx);
-
-    if (meth_decl.body == NO_NODE) {
-        return;
-    }
 
     AstNodeFull_List params = Ast_full_list(ast, meth_decl.params);
 

@@ -13,6 +13,8 @@ extern "C" {
 typedef uint32_t IrLoc;
 typedef uint32_t IrLbl;
 
+#define NEW_LOC 0
+
 typedef enum {
     JmpCond_LT,
     JmpCond_GT,
@@ -24,7 +26,7 @@ typedef enum {
 } JmpCond;
 
 typedef enum {
-    Op_LABEL,      // .lbl[a]:
+    Op_LBL,        // lbl[a]:
     Op_MOV,        // v[dst] = v[a]
     Op_MOV_LIT,    // v[dst] = a
 
