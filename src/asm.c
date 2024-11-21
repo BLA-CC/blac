@@ -6,26 +6,136 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 const char *CC_REGS[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
-uint32_t CC_REGS_SIZE = 6;
-uint32_t REG_SIZE = 8;
+uint32_t N_ARGREGS = 6;
+uint32_t REG_SIZE = 4;
 
+static int32_t var2offset(const Func *func, uint32_t var) {
+    uint32_t params_in_regs = func->arity < N_ARGREGS ? func->arity : N_ARGREGS;
+    uint32_t params_in_stack = func->arity - params_in_regs;
+    // param
+    if (var <= params_in_regs) return -var * REG_SIZE;
+    if (var <= func->arity) return (var - params_in_regs) * REG_SIZE;
+    // local
+    return -(var - params_in_stack) * REG_SIZE;
+}
 
 static void gen_asm_label(const StrIdx label, StrPool strs, FILE *file) {
     const char *label_str = StrPool_get(&strs, label);
     fprintf(file, "%s:\n", label_str);
 }
 
+static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE *file) {
+    switch (instr.op) {
+    case Op_LABEL: // .lbl[a]:
+        gen_asm_label(instr.a, strs, file);
+        break;
+    case Op_MOV: // v[dst] = v[a]
+        fprintf(
+            file, "\tmovl %d(%%ebp), %d(%%ebp)\n",
+            var2offset(&func, instr.a), var2offset(&func, instr.dst)
+        );
+        break;
+    case Op_MOV_LIT: // v[dst] = a
+        fprintf(
+            file, "\tmovl $%d, %d(%%ebp)\n",
+            instr.a, var2offset(&func, instr.dst)
+        );
+        break;
+    case Op_SET_GLOBAL: // g[dst] = v[a]
+        fprintf(
+            file, "\tmovl %d(%%ebp), %s(%%rip)\n",
+            var2offset(&func, instr.a), StrPool_get(&strs, instr.dst)
+        );
+        break;
+    case Op_GET_GLOBAL: // v[dst] = g[a]
+        fprintf(
+            file, "\tmovl %s(%%rip), %d(%%ebp)\n",
+            StrPool_get(&strs, instr.dst), var2offset(&func, instr.a)
+        );
+        break;
+    case Op_UNM: // v[dst] = -v[a]
+    case Op_NEG: // v[dst] = !v[a]
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\tnegl %%r10\n");
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        break;
+    case Op_MUL: // v[dst] = v[a] * v[b]
+        // TODO
+        break;
+    case Op_DIV: // v[dst] = v[a] / v[b]
+        // TODO
+        break;
+    case Op_MOD: // v[dst] = v[a] % v[b]
+        // TODO
+        break;
+    case Op_ADD: // v[dst] = v[a] + v[b]
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.b));
+        fprintf(file, "\taddl %%r11, %%r10\n");
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+      break;
+    case Op_SUB: // v[dst] = v[a] - v[b]
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.b));
+        fprintf(file, "\tsubl %%r11, %%r10\n");
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        break;
+    case Op_MUL_LIT: // v[dst] = v[a] * b
+        // TODO
+        break;
+    case Op_DIV_LIT: // v[dst] = v[a] / b
+        // TODO
+        break;
+    case Op_MOD_LIT: // v[dst] = v[a] % b
+        // TODO
+        break;
+    case Op_ADD_LIT: // v[dst] = v[a] + b
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\taddl $%d, %%r10\n", instr.b);
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        break;
+    case Op_SUB_LIT: // v[dst] = v[a] - b
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\tsubl $%d, %%r10\n", instr.b);
+        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        break;
+    case Op_CMP: // flags = v[a] <=> v[b]
+        break;
+    case Op_CMP_LIT: // flags = v[a] <=> b
+        break;
+    case Op_JMP: // goto lbl[a]
+        break;
+    case Op_JMP_IF: // if flags == a then goto lbl[b]
+        break;
+    case Op_CALL: // dst = f[a](b arguments)
+        break;
+    case Op_ARG: // arg[dst] = v[a]
+        break;
+    case Op_ARG_LIT: // arg[dst] = a
+        break;
+    case Op_RET: // ret v[a]
+        break;
+    case Op_RET_LIT: // ret a
+        break;
+    }
+}
+
 static void gen_asm_func(const Func func, StrPool strs, FILE *file) {
     gen_asm_label(func.name, strs, file);
-    fprintf(file, "\tenter $(%d*%d), $0\n", REG_SIZE, func.locals);
+    uint32_t params_in_regs = func.arity < N_ARGREGS ? func.arity : N_ARGREGS;
+    fprintf(file, "\tenter $(%d*%d), $0\n", REG_SIZE, func.locals - params_in_regs);
 
     int32_t stack_idx = -REG_SIZE;
-    for (int32_t i = MIN(CC_REGS_SIZE, func.arity) - 1; i >= 0; i--) {
-        fprintf(file, "\tmov %s %d(%%rbp)\n", CC_REGS[i], stack_idx);
+    for (int32_t i = MIN(N_ARGREGS, func.arity) - 1; i >= 0; i--) {
+        fprintf(file, "\tmov %s %d(%%ebp)\n", CC_REGS[i], stack_idx);
         stack_idx -= REG_SIZE;
     }
 
-    return;
+    for (uint32_t i = 0; i < func.instrs.len; i++) {
+        gen_asm_instr(func.instrs.elems[i], func, strs, file);
+    }
+
+    fprintf(file, "\tleave\n\tret\n");
 }
 
 static void gen_asm_globls(const GlobalVec globls, StrPool strs, FILE *file) {
@@ -62,3 +172,7 @@ void gen_asm(const Ir ir, StrPool strs, FILE *file) {
     gen_asm_globls(ir.globals, strs, file);
     gen_asm_funcs(ir.funcs, strs, file);
 }
+
+
+
+// TODO: main es globl
