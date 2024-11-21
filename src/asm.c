@@ -26,8 +26,8 @@ static void gen_asm_label(const StrIdx label, StrPool strs, FILE *file) {
 
 static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE *file) {
     switch (instr.op) {
-    case Op_LABEL: // .lbl[a]:
-        gen_asm_label(instr.a, strs, file);
+    case Op_LBL: // .lbl[a]:
+        fprintf(file, ".L%d:\n", instr.a);
         break;
     case Op_MOV: // v[dst] = v[a]
         fprintf(
@@ -100,22 +100,58 @@ static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE
         fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
         break;
     case Op_CMP: // flags = v[a] <=> v[b]
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.b));
+        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.a));
+        fprintf(file, "\tcmp %%r10, %%r11\n");
         break;
     case Op_CMP_LIT: // flags = v[a] <=> b
+        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d, %%r11\n", instr.b);
+        fprintf(file, "\tcmp %%r10, %%r11\n");
         break;
     case Op_JMP: // goto lbl[a]
+        fprintf(file, "\tjmp .L%d", instr.a);
         break;
     case Op_JMP_IF: // if flags == a then goto lbl[b]
+        char *jmp_insn;
+        switch (instr.a) {
+            case JmpCond_LT:
+                jmp_insn = "jl";
+                break;
+            case JmpCond_GT:
+                jmp_insn = "jg";
+                break;
+            case JmpCond_EQ:
+                jmp_insn = "je";
+                break;
+            case JmpCond_GE:
+                jmp_insn = "jge";
+                break;
+            case JmpCond_LE:
+                jmp_insn = "jle";
+                break;
+            case JmpCond_NE:
+                jmp_insn = "jne";
+                break;
+        }
+        fprintf(file, "\t%s .L%d\n", jmp_insn, instr.b);
         break;
     case Op_CALL: // dst = f[a](b arguments)
+        // TODO
         break;
     case Op_ARG: // arg[dst] = v[a]
+        // TODO
         break;
     case Op_ARG_LIT: // arg[dst] = a
+        // TODO
         break;
     case Op_RET: // ret v[a]
+        fprintf(file, "\tmovl %d(%%ebp), %%eax\n", var2offset(&func, instr.a));
+        fprintf(file, "\tleave\n\tret\n");
         break;
     case Op_RET_LIT: // ret a
+        fprintf(file, "\tmovl %d, %%eax\n", instr.a);
+        fprintf(file, "\tleave\n\tret\n");
         break;
     }
 }
@@ -135,7 +171,6 @@ static void gen_asm_func(const Func func, StrPool strs, FILE *file) {
         gen_asm_instr(func.instrs.elems[i], func, strs, file);
     }
 
-    fprintf(file, "\tleave\n\tret\n");
 }
 
 static void gen_asm_globls(const GlobalVec globls, StrPool strs, FILE *file) {
