@@ -1,3 +1,4 @@
+#include "common.h"
 #include "ir.h"
 #include "str_pool.h"
 #include <stdint.h>
@@ -10,7 +11,7 @@ uint32_t N_ARGREGS = 6;
 uint32_t REG_SIZE = 4;
 
 static int32_t var2offset(const Func *func, uint32_t var) {
-    uint32_t params_in_regs = func->arity < N_ARGREGS ? func->arity : N_ARGREGS;
+    uint32_t params_in_regs = MIN(func->arity, N_ARGREGS);
     uint32_t params_in_stack = func->arity - params_in_regs;
     // param
     if (var <= params_in_regs) return -var * REG_SIZE;
@@ -24,137 +25,171 @@ static void gen_asm_label(const StrIdx label, StrPool strs, FILE *file) {
     fprintf(file, "%s:\n", label_str);
 }
 
+static char *cond2jmp_insn(const JmpCond jmp_cond) {
+    switch (jmp_cond) {
+        case JmpCond_LT:
+            return "jl";
+        case JmpCond_GT:
+            return "jg";
+        case JmpCond_EQ:
+            return "je";
+        case JmpCond_GE:
+            return "jge";
+        case JmpCond_LE:
+            return "jle";
+        case JmpCond_NE:
+            return "jne";
+    }
+    unreachable;
+}
+
 static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE *file) {
     switch (instr.op) {
     case Op_LBL: // .lbl[a]:
-        fprintf(file, ".L%d:\n", instr.a);
+        fprintf(file, ".L%u:\n", instr.a);
         break;
     case Op_MOV: // v[dst] = v[a]
         fprintf(
-            file, "\tmovl %d(%%ebp), %d(%%ebp)\n",
-            var2offset(&func, instr.a), var2offset(&func, instr.dst)
+            file, "\tmovl %d(%%rbp), %%r10d\n",
+            var2offset(&func, instr.a)
+        );
+        fprintf(
+            file, "\tmovl %%r10d, %d(%%rbp)\n",
+            var2offset(&func, instr.dst)
         );
         break;
     case Op_MOV_LIT: // v[dst] = a
         fprintf(
-            file, "\tmovl $%d, %d(%%ebp)\n",
+            file, "\tmovl $%d, %d(%%rbp)\n",
             instr.a, var2offset(&func, instr.dst)
         );
         break;
     case Op_SET_GLOBAL: // g[dst] = v[a]
         fprintf(
-            file, "\tmovl %d(%%ebp), %s(%%rip)\n",
+            file, "\tmovl %d(%%rbp), %s(%%rip)\n",
             var2offset(&func, instr.a), StrPool_get(&strs, instr.dst)
         );
         break;
     case Op_GET_GLOBAL: // v[dst] = g[a]
         fprintf(
-            file, "\tmovl %s(%%rip), %d(%%ebp)\n",
+            file, "\tmovl %s(%%rip), %d(%%rbp)\n",
             StrPool_get(&strs, instr.dst), var2offset(&func, instr.a)
         );
         break;
     case Op_UNM: // v[dst] = -v[a]
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tnegl %%r10d\n");
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
+        break;
     case Op_NEG: // v[dst] = !v[a]
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\tnegl %%r10\n");
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\txorl $1 %%r10d\n");
+        fprintf(file, "\tmovl %%r10d,  %d(%%rbp)\n", var2offset(&func, instr.a));
         break;
     case Op_MUL: // v[dst] = v[a] * v[b]
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\timull %d(%%ebp), %%r10\n", var2offset(&func, instr.b));
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\timull %d(%%rbp), %%r10d\n", var2offset(&func, instr.b));
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
         break;
     case Op_DIV: // v[dst] = v[a] / v[b]
-        // TODO
-        break;
     case Op_MOD: // v[dst] = v[a] % v[b]
-        // TODO
+        fprintf(file, "\tmovl $0 %%edx\n");
+        fprintf(file, "\tmovl %d(%%rbp) %%eax\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.b));
+        fprintf(file, "\tidivl %%r10d\n");
+        if (instr.op == Op_DIV) {
+            fprintf(file, "\tmovl %%eax %d(%%rpb)\n", var2offset(&func, instr.dst));
+        } else {
+            fprintf(file, "\tmovl %%edx %d(%%rpb)\n", var2offset(&func, instr.dst));
+        }
         break;
     case Op_ADD: // v[dst] = v[a] + v[b]
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.b));
-        fprintf(file, "\taddl %%r11, %%r10\n");
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
-      break;
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%rbp), %%r11d\n", var2offset(&func, instr.b));
+        fprintf(file, "\taddl %%r11d, %%r10d\n");
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
+        break;
     case Op_SUB: // v[dst] = v[a] - v[b]
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.b));
-        fprintf(file, "\tsubl %%r11, %%r10\n");
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%rbp), %%r11d\n", var2offset(&func, instr.b));
+        fprintf(file, "\tsubl %%r11d, %%r10d\n");
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
         break;
     case Op_MUL_LIT: // v[dst] = v[a] * b
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\timull $%d, %%r10, %%r11\n", instr.b);
-        fprintf(file, "\tmovl %%r11, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\timull $%d, %%r10d, %%r11d\n", instr.b);
+        fprintf(file, "\tmovl %%r11d, %d(%%rbp)\n", var2offset(&func, instr.dst));
         break;
     case Op_DIV_LIT: // v[dst] = v[a] / b
-        // TODO
-        break;
     case Op_MOD_LIT: // v[dst] = v[a] % b
-        // TODO
+        panic("TODO");
         break;
     case Op_ADD_LIT: // v[dst] = v[a] + b
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\taddl $%d, %%r10\n", instr.b);
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\taddl $%d, %%r10d\n", instr.b);
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
         break;
     case Op_SUB_LIT: // v[dst] = v[a] - b
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\tsubl $%d, %%r10\n", instr.b);
-        fprintf(file, "\tmovl %%r10, %d(%%ebp)\n", var2offset(&func, instr.dst));
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tsubl $%d, %%r10d\n", instr.b);
+        fprintf(file, "\tmovl %%r10d, %d(%%rbp)\n", var2offset(&func, instr.dst));
         break;
     case Op_CMP: // flags = v[a] <=> v[b]
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.b));
-        fprintf(file, "\tmovl %d(%%ebp), %%r11\n", var2offset(&func, instr.a));
-        fprintf(file, "\tcmp %%r10, %%r11\n");
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.b));
+        fprintf(file, "\tmovl %d(%%rbp), %%r11d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tcmpl %%r11d, %%r10d\n");
         break;
     case Op_CMP_LIT: // flags = v[a] <=> b
-        fprintf(file, "\tmovl %d(%%ebp), %%r10\n", var2offset(&func, instr.a));
-        fprintf(file, "\tmovl %d, %%r11\n", instr.b);
-        fprintf(file, "\tcmp %%r10, %%r11\n");
+        fprintf(file, "\tmovl %d(%%rbp), %%r10d\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl $%d, %%r11d\n", instr.b);
+        fprintf(file, "\tcmpl %%r11d, %%r10d\n");
         break;
     case Op_JMP: // goto lbl[a]
-        fprintf(file, "\tjmp .L%d", instr.a);
+        fprintf(file, "\tjmp .L%u\n", instr.a);
         break;
     case Op_JMP_IF: // if flags == a then goto lbl[b]
-        char *jmp_insn;
-        switch (instr.a) {
-            case JmpCond_LT:
-                jmp_insn = "jl";
-                break;
-            case JmpCond_GT:
-                jmp_insn = "jg";
-                break;
-            case JmpCond_EQ:
-                jmp_insn = "je";
-                break;
-            case JmpCond_GE:
-                jmp_insn = "jge";
-                break;
-            case JmpCond_LE:
-                jmp_insn = "jle";
-                break;
-            case JmpCond_NE:
-                jmp_insn = "jne";
-                break;
-        }
-        fprintf(file, "\t%s .L%d\n", jmp_insn, instr.b);
+        fprintf(file, "\t%s .L%u\n", cond2jmp_insn(instr.a), instr.b);
         break;
     case Op_CALL: // dst = f[a](b arguments)
-        // TODO
+        {
+            const char *func_label = StrPool_get(&strs, instr.a);
+            fprintf(file, "\tcall %s\n", func_label);
+            if (instr.dst != 0) {
+                fprintf(file, "\tmovl %%eax, %d(%%rbp)\n", var2offset(&func, instr.dst));
+            }
+            if (instr.b > N_ARGREGS) {
+                fprintf(file, "\taddq $%d, %%rsp\n",
+                (instr.b - N_ARGREGS) * REG_SIZE
+                );
+            }
+        }
         break;
     case Op_ARG: // arg[dst] = v[a]
-        // TODO
+        if (instr.dst < N_ARGREGS) {
+            fprintf(
+                file,"\tmovl %d(%%rbp), %%%s\n",
+                var2offset(&func, instr.a), CC_REGS[instr.dst]
+            );
+        } else {
+            fprintf(file, "push %d(%%rbp)\n", var2offset(&func, instr.a));
+        }
         break;
     case Op_ARG_LIT: // arg[dst] = a
-        // TODO
+        if (instr.dst <= N_ARGREGS) {
+            fprintf(
+                file,"\tmovl $%d, %%%s\n",
+                instr.a, CC_REGS[instr.dst]
+            );
+        } else {
+            fprintf(file, "push $%d\n", instr.a);
+        }
         break;
     case Op_RET: // ret v[a]
-        fprintf(file, "\tmovl %d(%%ebp), %%eax\n", var2offset(&func, instr.a));
+        fprintf(file, "\tmovl %d(%%rbp), %%eax\n", var2offset(&func, instr.a));
         fprintf(file, "\tleave\n\tret\n");
         break;
     case Op_RET_LIT: // ret a
-        fprintf(file, "\tmovl %d, %%eax\n", instr.a);
+        fprintf(file, "\tmovl $%d, %%eax\n", instr.a);
         fprintf(file, "\tleave\n\tret\n");
         break;
     }
@@ -162,12 +197,12 @@ static void gen_asm_instr(const Instr instr, const Func func, StrPool strs, FILE
 
 static void gen_asm_func(const Func func, StrPool strs, FILE *file) {
     gen_asm_label(func.name, strs, file);
-    uint32_t params_in_regs = func.arity < N_ARGREGS ? func.arity : N_ARGREGS;
-    fprintf(file, "\tenter $(%d*%d), $0\n", REG_SIZE, func.locals - params_in_regs);
+    uint32_t params_in_stack = func.arity - MIN(N_ARGREGS, func.arity);
+    fprintf(file, "\tenter $(%d*%d), $0\n", REG_SIZE, func.locals - params_in_stack);
 
     int32_t stack_idx = -REG_SIZE;
     for (int32_t i = MIN(N_ARGREGS, func.arity) - 1; i >= 0; i--) {
-        fprintf(file, "\tmov %s %d(%%ebp)\n", CC_REGS[i], stack_idx);
+        fprintf(file, "\tmovl %%%s, %d(%%rbp)\n", CC_REGS[i], stack_idx);
         stack_idx -= REG_SIZE;
     }
 
