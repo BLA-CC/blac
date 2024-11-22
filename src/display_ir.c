@@ -123,7 +123,11 @@ void display_ir(const Ir ir, StrPool strs, uint32_t indent, FILE *stream) {
     PPRINT(indent, "G := {");
     for (uint32_t i = 0; i < globals.len; ++i) {
         Global glbl = globals.elems[i];
-        PPRINT(indent + INDENT_SZ, "%s: $%d", StrPool_get(&strs, glbl.name), glbl.value);
+        PPRINT(
+            indent + INDENT_SZ,
+            "%s: $%d",
+            StrPool_get(&strs, glbl.name),
+            glbl.value);
     }
     PPRINT(indent, "}");
 

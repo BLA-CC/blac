@@ -201,7 +201,7 @@ static void display_stmt(Pp *pp, Ast ast, NodeIdx idx) {
 
     case AstNodeKind_WHILE: {
         AstNodeFull_While whilee = Ast_full_while(ast, idx);
-            
+
         PPRINT("(while:\n");
         INDENT;
         PPRINT("cond:");
@@ -300,7 +300,9 @@ static void display_prog(Pp *pp, Ast ast) {
 }
 
 void display_ast(const Ast ast, StrPool strs, uint32_t indent, FILE *stream) {
-    Pp pp = { .strs = strs, .stream = stream, .indent = indent, .do_indent = true };
+    Pp pp = {
+        .strs = strs, .stream = stream, .indent = indent, .do_indent = true
+    };
 
     display_prog(&pp, ast);
 }

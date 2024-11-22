@@ -113,4 +113,3 @@ AstNodeFull_MethCall Ast_full_meth_call(Ast ast, NodeIdx idx) {
         .args_end = params_node->data.rhs,
     };
 }
-
